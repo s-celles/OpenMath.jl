@@ -1,0 +1,5 @@
+source = "omstd20 §2.1.1"
+tags = ["omattr", "omforeign"]
+strict = true
+provenance = "omstd20"
+skip = []

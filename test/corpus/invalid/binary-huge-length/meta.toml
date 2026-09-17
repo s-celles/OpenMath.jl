@@ -1,0 +1,8 @@
+source = "omstd20 §3.2"
+provenance = "omstd20"
+tags = ["invalid", "binary"]
+strict = true
+expect_error = "OpenMathLimitError"
+reason = "a byte array claiming four gigabytes (omstd20 §3.2.2)"
+note = "REQ-BIN-006: the byte budget is consulted before the allocation, not after"
+skip = []

@@ -1,0 +1,7 @@
+source = "omstd20 §2.1.1"
+tags = ["invalid"]
+strict = true
+provenance = "omstd20"
+expect_error = "OpenMathError"
+reason = "an application needs at least an applicant"
+skip = []

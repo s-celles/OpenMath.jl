@@ -1,0 +1,7 @@
+source = "omstd20 §2.3"
+tags = ["invalid"]
+strict = true
+provenance = "omstd20"
+expect_error = "OpenMathError"
+reason = "names must match the Name production"
+skip = []

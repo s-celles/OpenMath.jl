@@ -1,0 +1,7 @@
+source = "omstd20 §3.1.1"
+tags = ["invalid"]
+strict = true
+provenance = "omstd20"
+expect_error = "OpenMathError"
+reason = "a float needs dec or hex"
+skip = []

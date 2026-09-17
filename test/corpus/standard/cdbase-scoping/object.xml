@@ -1,0 +1,1 @@
+<OMOBJ xmlns="http://www.openmath.org/OpenMath" version="2.0"><OMA cdbase="http://outer.example/cd"><OMS cd="a" name="f"/><OMS cdbase="http://inner.example/cd" cd="b" name="g"/></OMA></OMOBJ>

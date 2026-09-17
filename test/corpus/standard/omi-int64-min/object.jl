@@ -1,0 +1,1 @@
+OMInteger(typemin(Int64))

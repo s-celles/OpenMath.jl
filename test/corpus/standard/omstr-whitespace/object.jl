@@ -1,0 +1,1 @@
+OMString("  two  spaces\n")

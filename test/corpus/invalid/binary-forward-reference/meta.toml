@@ -1,0 +1,8 @@
+source = "omstd20 §3.2"
+provenance = "omstd20"
+tags = ["invalid", "binary"]
+strict = true
+expect_error = "OpenMathParseError"
+reason = "a reference to a shared object that has not been read (omstd20 §3.2.5)"
+note = "REQ-BIN-001: forward references are not allowed (§3.2.5)"
+skip = []

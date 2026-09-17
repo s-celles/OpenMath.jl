@@ -1,0 +1,8 @@
+source = "omstd20 §3.2"
+provenance = "omstd20"
+tags = ["invalid", "binary"]
+strict = true
+expect_error = "OpenMathParseError"
+reason = "a string that declares 64 bytes and supplies one (omstd20 §3.2.2)"
+note = "REQ-BIN-005: a declared length is checked against the input, never believed"
+skip = []

@@ -1,0 +1,5 @@
+source = "omstd20 §3.1.1"
+tags = ["omstr", "entities"]
+strict = true
+provenance = "omstd20"
+skip = []

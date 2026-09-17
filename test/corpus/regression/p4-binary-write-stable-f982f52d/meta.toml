@@ -1,0 +1,6 @@
+source = "property p4_binary_write_stable, shrunk by Supposition"
+provenance = "shrunk-counterexample"
+tags = ["regression", "p4_binary_write_stable"]
+strict = true
+skip = []
+functional = "OMOBJ(cdbase=http://example.org/cd, OME(cdbase=http://other.example/cd, OMS(a#a), OMA(OMI(-8))))"

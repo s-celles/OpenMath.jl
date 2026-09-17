@@ -1,0 +1,18 @@
+name = "OpenMath"
+uuid = "a3e62119-7808-4860-a560-991581b033be"
+authors = ["Sébastien Celles <s.celles@gmail.com> and contributors"]
+version = "0.0.1"
+
+[deps]
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+
+[weakdeps]
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+
+[extensions]
+OpenMathSymbolicsExt = "Symbolics"
+
+[compat]
+PrecompileTools = "1"
+Symbolics = "5, 6, 7"
+julia = "1.10"

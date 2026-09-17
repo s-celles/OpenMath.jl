@@ -1,0 +1,50 @@
+# Performance baseline, written by `just bench --save`.
+# Phase 8's exit criterion compares against these numbers.
+#
+# Throughput varies by roughly a factor of two between runs on a
+# shared machine, so a regression budget against these has to be
+# generous: they catch a change of order, not of constant factor.
+# The time-to-first-parse figures are the stable ones.
+nodes = 1601
+julia = "1.13.0"
+date = "2026-09-18"
+
+["write-xml"]
+seconds = 0.000911386
+bytes = 34687
+allocations = 15046
+
+["read-xml"]
+seconds = 0.001193821
+bytes = 34687
+allocations = 32702
+
+["write-json"]
+seconds = 0.00099539
+bytes = 60676
+allocations = 19649
+
+["read-json"]
+seconds = 0.001366249
+bytes = 60676
+allocations = 37657
+
+["write-mathml"]
+seconds = 0.000895812
+bytes = 40686
+allocations = 12640
+
+["read-mathml"]
+seconds = 0.001325538
+bytes = 40686
+allocations = 40871
+
+["write-binary"]
+seconds = 0.00111431
+bytes = 12967
+allocations = 21166
+
+["read-binary"]
+seconds = 0.000234886
+bytes = 12967
+allocations = 10596

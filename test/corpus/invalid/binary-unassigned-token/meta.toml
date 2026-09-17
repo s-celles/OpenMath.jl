@@ -1,0 +1,8 @@
+source = "omstd20 §3.2"
+provenance = "omstd20"
+tags = ["invalid", "binary"]
+strict = true
+expect_error = "OpenMathParseError"
+reason = "token identifier 11, which §3.2.1 does not assign"
+note = "REQ-BIN-001: an unknown token is an error, not something to skip"
+skip = []

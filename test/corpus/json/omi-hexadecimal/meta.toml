@@ -1,0 +1,5 @@
+source = "omstd20 §3.3"
+tags = ["omi", "json", "radix"]
+strict = true
+provenance = "omstd20"
+skip = []

@@ -1,0 +1,5 @@
+source = "omstd20 §3.1.1"
+tags = ["omf", "hex", "boundary"]
+strict = true
+provenance = "omstd20"
+skip = []

@@ -1,0 +1,5 @@
+source = "omstd20 §2.1.4"
+tags = ["oms", "cdbase"]
+strict = true
+provenance = "omstd20"
+skip = []

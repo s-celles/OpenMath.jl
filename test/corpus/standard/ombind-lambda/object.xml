@@ -1,0 +1,1 @@
+<OMOBJ xmlns="http://www.openmath.org/OpenMath" version="2.0"><OMBIND><OMS cd="fns1" name="lambda"/><OMBVAR><OMV name="x"/></OMBVAR><OMA><OMS cd="arith1" name="plus"/><OMV name="x"/><OMI>1</OMI></OMA></OMBIND></OMOBJ>

@@ -1,0 +1,5 @@
+source = "omstd20 §3.1"
+tags = ["namespace"]
+strict = true
+provenance = "omstd20"
+skip = []

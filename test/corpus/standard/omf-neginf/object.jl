@@ -1,0 +1,1 @@
+OMFloat(-Inf)

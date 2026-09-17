@@ -1,0 +1,9 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+OpenMath = "a3e62119-7808-4860-a560-991581b033be"
+
+[sources]
+OpenMath = {path = "/home/scelles-admin/git/github/s-celles/julia/OpenMath.jl"}
+
+[compat]
+Documenter = "1"

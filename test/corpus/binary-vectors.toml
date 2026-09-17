@@ -1,0 +1,241 @@
+# SPDX-License-Identifier: MIT
+#
+# Ground truth for the binary encoding (omstd20 §3.2), transcribed from the
+# standard's own worked examples *before* any codec was written.
+#
+# This file exists because of a gap the rest of the harness cannot close. Every
+# other encoding had an independent implementation to disagree with us: expat and
+# the reference crate for XML, the standard's worked documents for JSON, the
+# MathML 4 element table for Strict Content MathML. For the binary encoding the
+# oracle we build says nothing — the reference crate declares §3.2 TODO — and
+# round-trip, idempotence and cross-encoding agreement are all satisfied
+# *trivially* by a reader and a writer that share the same misunderstanding.
+# (GAP's `openmath` package does implement it; wiring it up is Phase 4b.)
+#
+# These byte sequences were therefore the only external check in hand. They
+# are quoted verbatim, including the ones that are wrong; `defect` records what
+# the standard says versus what its bytes say, and `repaired` carries the
+# corrected sequence. See `upstream-bugs.md`.
+#
+# `bytes` is hex, whitespace-insensitive. A `fragment` is a single object, which
+# the test wraps in [24] … [25]; a `document` is complete as it stands.
+
+# --- §3.2.2, integers ---------------------------------------------------------
+
+[[vector]]
+name = "small-integer"
+section = "3.2.2"
+kind = "fragment"
+bytes = "01 10"
+expect = "OMInteger(16)"
+note = "\"For example 16 is encoded as 0x01 0x10.\""
+
+[[vector]]
+name = "small-integer-long-form"
+section = "3.2.2"
+kind = "fragment"
+bytes = "81 00 00 00 80"
+expect = "OMInteger(128)"
+note = "\"For example, 128 is encoded as 0x81 0x00000080.\" Four bytes, network order."
+
+[[vector]]
+name = "big-integer-base-10"
+section = "3.2.2"
+kind = "fragment"
+bytes = "02 0A 2B 38 35 38 39 39 33 34 35 39 32"
+expect = "OMInteger(8589934592)"
+note = "Sign/base byte 0x2B is '+' or-ed with base mask 0 (decimal); the digits follow as characters."
+
+[[vector]]
+name = "big-integer-base-16"
+section = "3.2.2"
+kind = "fragment"
+bytes = "02 08 6B 66 66 66 66 66 66 66 31"
+expect = "OMInteger(4294967281)"
+note = "0x6B is '+' (0x2B) or-ed with the base-16 mask 0x40; digits \"fffffff1\" as characters."
+
+[[vector]]
+name = "big-integer-base-256"
+section = "3.2.2"
+kind = "fragment"
+bytes = "02 04 AB FF FF FF F1"
+expect = "OMInteger(4294967281)"
+note = """0xAB is '+' or-ed with the base-256 mask 0x80; digits are raw bytes. \
+Revision 1 (July 2017) corrected this example: the 0xAB byte had been omitted \
+and 0xF1 written as 0xFI."""
+
+# --- §3.2.2, the other leaves -------------------------------------------------
+
+[[vector]]
+name = "variable"
+section = "3.2.2"
+kind = "fragment"
+bytes = "05 01 78"
+expect = "OMVariable(\"x\")"
+note = "\"For example, the variable x is encoded as 0x05 0x01 0x78.\""
+
+[[vector]]
+name = "float"
+section = "3.2.2"
+kind = "fragment"
+bytes = "03 3D DB 7C DF D9 D7 BD BB"
+expect = "OMFloat(1.0e-10)"
+note = """\"1×10^-10 is encoded as 0x03 3ddb7cdfd9d7bdbb\", most significant byte \
+first. Revision 1 replaced the previous example for 0.1, which was wrong."""
+
+# --- Figure 3.5, a whole object ----------------------------------------------
+
+[[vector]]
+name = "figure-3-5-as-printed"
+section = "3.2.3"
+kind = "document"
+bytes = """
+58 02 00
+10
+08 06 05 61 72 69 74 68 31 74 69 6D 65 73
+10
+08 06 04 61 72 69 74 68 31 70 6C 75 73
+05 01 78
+05 01 79
+11
+10
+48 01
+45 00
+05 01 7A
+11
+11
+19
+"""
+expect = "reject"
+defect = """\
+Figure 3.5 is not decodable. Byte 1 is 0x58 = [24+64], which §3.2.4.2 says \
+selects the OpenMath 2 interpretation of the sharing flag — "it indicates \
+whether an object will be referenced later". But bytes 41–44 use the OpenMath 1 \
+interpretation, back-references into the per-kind tables of §3.2.4.1: the figure \
+itself labels 0x48 0x01 "reference to second symbol seen". Under the header the \
+figure declares, 0x48 opens a symbol whose cd name is one byte long, and the \
+decoder desynchronises immediately. The two readings cannot both hold."""
+
+[[vector]]
+name = "figure-3-5-repaired"
+section = "3.2.3"
+kind = "document"
+bytes = """
+18
+10
+08 06 05 61 72 69 74 68 31 74 69 6D 65 73
+10
+08 06 04 61 72 69 74 68 31 70 6C 75 73
+05 01 78
+05 01 79
+11
+10
+48 01
+45 00
+05 01 7A
+11
+11
+19
+"""
+expect = """OMSymbol("arith1", "times")(
+    OMSymbol("arith1", "plus")(OMVariable("x"), OMVariable("y")),
+    OMSymbol("arith1", "plus")(OMVariable("x"), OMVariable("z")))"""
+repairs = "figure-3-5-as-printed"
+note = """The body of Figure 3.5 is a valid OpenMath 1 encoding; only the header \
+is wrong. Replacing [24+64] [2] [0] with [24] makes the figure's own byte \
+annotations come out exactly right, which is the evidence that the body is what \
+was meant and the header is the slip."""
+
+# --- Figure 3.6, structure sharing -------------------------------------------
+
+[[vector]]
+name = "figure-3-6-as-printed"
+section = "3.2.4.2"
+kind = "document"
+bytes = """
+58 02 00
+10
+05 01 66
+50
+05 01 66
+50
+05 01 66
+05 01 61
+05 01 61
+11
+1E 00
+11
+1E 00
+11
+19
+"""
+expect = """
+let f(args...) = OMApplication(OMVariable("f"), collect(OMNode, args)),
+    a = OMVariable("a")
+    f(f(f(a, a), f(a, a)), f(a, a))
+end"""
+defect = """\
+Byte 27 is 0x00, which the figure's own Meaning column glosses as "to the second \
+shared object" — that is index 1, so the byte should be 0x01. As printed the \
+figure decodes to f(f(f(a,a),f(a,a)), f(a,a)), not to the object of Figure 3.1 \
+it is captioned as encoding. The bytes are well formed, so nothing but the \
+caption catches this: it is a wrong answer, not a parse failure."""
+
+[[vector]]
+name = "figure-3-6-repaired"
+section = "3.2.4.2"
+kind = "document"
+bytes = """
+58 02 00
+10
+05 01 66
+50
+05 01 66
+50
+05 01 66
+05 01 61
+05 01 61
+11
+1E 00
+11
+1E 01
+11
+19
+"""
+expect = """
+let f(args...) = OMApplication(OMVariable("f"), collect(OMNode, args)),
+    a = OMVariable("a")
+    f(f(f(a, a), f(a, a)), f(f(a, a), f(a, a)))
+end"""
+repairs = "figure-3-6-as-printed"
+note = """The object of Figure 3.1, f(f(f(a,a),f(a,a)), f(f(a,a),f(a,a))), shared \
+as `id="t1"` / `id="t11"` with two `OMR`s. This vector also fixes the ordinal \
+question the prose leaves open: shared objects are numbered as they *complete*, \
+not as they start. Under start-order, byte 24 would reference the application \
+that encloses it, which the acyclicity constraint of §3.1.3.1 forbids — so \
+completion order is the only reading under which the figure decodes at all, and \
+it is what §3.2.5 describes ("it is read and a pointer to the generated data \
+structure is stored at the next position")."""
+
+# --- Figure 3.6, on the id question ------------------------------------------
+#
+# Figure 3.3's grammar gives every shared production an explicit id field, e.g.
+# `application → [16+64] [m] id:m object objects [17]`. Figure 3.6 byte 8 is
+# 0x50 = [16+64] and byte 9 is 0x05, a variable tag — no length, no id. The two
+# cannot both be right, and this package follows the figure; see decision D7 in
+# docs/src/design/binary-backend.md.
+
+[[vector]]
+name = "shared-tag-carries-no-id"
+section = "3.2.4.2"
+kind = "document"
+bytes = "58 02 00 10 05 01 66 50 05 01 66 05 01 61 11 1E 00 11 19"
+expect = """
+let f(args...) = OMApplication(OMVariable("f"), collect(OMNode, args)),
+    a = OMVariable("a")
+    f(f(a), f(a))
+end"""
+note = """Figure 3.6's byte 8 reduced to its smallest form: [16+64] followed \
+directly by the applicant, with one reference back to it. Under Figure 3.3's \
+grammar the 0x05 after 0x50 would be an id length and the document would not \
+decode."""

@@ -1,0 +1,7 @@
+source = "SECURITY.md"
+tags = ["invalid"]
+strict = true
+provenance = "omstd20"
+expect_error = "OpenMathError"
+reason = "DOCTYPE is refused"
+skip = []

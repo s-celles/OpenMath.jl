@@ -1,0 +1,8 @@
+source = "omstd20 §3.2"
+provenance = "omstd20"
+tags = ["invalid", "binary"]
+strict = true
+expect_error = "OpenMathParseError"
+reason = "a stream that stops in the middle of an application (omstd20 §3.2)"
+note = "REQ-BIN-005: a truncated stream must name the byte it stopped at"
+skip = []

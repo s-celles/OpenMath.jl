@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+#
+# SciML style, the convention this project follows. `just format` applies it and
+# `just format-check` reports what is unformatted.
+#
+# Markdown is deliberately excluded. Turning it on rewrote the LICENSE — it made
+# the copyright line's email address into a markdown link — and reflowed prose
+# that was wrapped on meaning rather than on column count. A code formatter has no
+# business touching either.
+style = "sciml"
+format_markdown = false
+format_docstrings = false

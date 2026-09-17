@@ -1,0 +1,6 @@
+source = "property p4_binary_roundtrip, shrunk by Supposition"
+provenance = "shrunk-counterexample"
+tags = ["regression", "p4_binary_roundtrip"]
+strict = true
+skip = []
+functional = "OMOBJ(cdbase=http://example.org/cd, OME(cdbase=http://other.example/cd, OMS(a#a), OMI(-8)))"
