@@ -1,0 +1,21 @@
+# OpenMath.jl
+
+> A Julia implementation of the OpenMath 2.0 standard: an object
+> model for the semantics of mathematical objects, and readers and
+> writers for the official encodings.
+
+## Documentation
+
+- [OpenMath.jl](https://s-celles.github.io/OpenMath.jl/)
+- [Object model](https://s-celles.github.io/OpenMath.jl/object-model/)
+- [Validation and normalisation](https://s-celles.github.io/OpenMath.jl/passes/)
+- [Security](https://s-celles.github.io/OpenMath.jl/security/)
+- [Decision D1 — the XML backend](https://s-celles.github.io/OpenMath.jl/design/xml-backend/)
+- [Decision D3 — the JSON backend](https://s-celles.github.io/OpenMath.jl/design/json-backend/)
+- [API reference](https://s-celles.github.io/OpenMath.jl/api/)
+
+## Source
+
+- [Repository](https://github.com/s-celles/OpenMath.jl)
+- [Requirements (EARS/MoSCoW)](https://github.com/s-celles/OpenMath.jl/blob/main/specs/requirements.md)
+- [Roadmap](https://github.com/s-celles/OpenMath.jl/blob/main/ROADMAP.md)

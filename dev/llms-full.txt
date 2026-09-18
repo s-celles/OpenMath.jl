@@ -1,0 +1,719 @@
+# OpenMath.jl — full documentation
+
+
+
+<!-- index.md -->
+
+# OpenMath.jl
+
+A Julia implementation of the [OpenMath 2.0](https://openmath.org/) standard.
+
+OpenMath encodes the *semantics* of mathematical objects rather than their
+appearance. An OpenMath object is a small, fully specified tree whose leaves take
+their meaning from **Content Dictionaries** — machine-readable documents defining
+symbols such as `arith1#plus` or `calculus1#diff`.
+
+!!! warning "Early development"
+    The object model, validation, the normalisation passes, all four endorsed
+    encodings and Content Dictionary parsing are in place. The API is not yet
+    stable; see the roadmap for what 0.9.0 requires.
+
+## Quick start
+
+```jldoctest
+julia> using OpenMath
+
+julia> e = OMS"arith1#plus"(OMInteger(1), OMVariable("x"))
+OMA(OMS(arith1#plus), OMI(1), OMV(x))
+
+julia> isvalid_openmath(e)
+true
+
+julia> canonicalize(e).applicant.cdbase
+"http://www.openmath.org/cd"
+```
+
+## Reading the XML encoding
+
+```jldoctest
+julia> using OpenMath
+
+julia> o = OpenMath.parse("""
+           <OMOBJ xmlns="http://www.openmath.org/OpenMath">
+             <OMA><OMS cd="arith1" name="plus"/><OMI>1</OMI><OMV name="x"/></OMA>
+           </OMOBJ>""");
+
+julia> o.object
+OMA(OMS(arith1#plus), OMI(1), OMV(x))
+```
+
+`OpenMath.parse` determines the encoding from the leading bytes by default — see
+[The four encodings](encodings.md) — and takes a strictness mode: `:strict`
+rejects any deviation from the standard, `:lenient` accepts documented ones and
+records them on the result.
+
+```jldoctest
+julia> using OpenMath
+
+julia> o = OpenMath.parse("<OMOBJ><OMI>1</OMI></OMOBJ>"; mode = :lenient);
+
+julia> o.warnings
+1-element Vector{String}:
+ "no OpenMath namespace declared"
+```
+
+## Writing the XML encoding
+
+```jldoctest
+julia> using OpenMath
+
+julia> OpenMath.xml(OMObject(OMS"arith1#plus"(OMInteger(1), OMVariable("x"))))
+"<OMOBJ xmlns=\"http://www.openmath.org/OpenMath\" version=\"2.0\"><OMA><OMS cd=\"arith1\" name=\"plus\"/><OMI>1</OMI><OMV name=\"x\"/></OMA></OMOBJ>"
+```
+
+`cdbase` is written only where the effective base changes, and `OMF` takes the
+IEEE-754 `hex` form exactly when the decimal one would lose the value.
+
+## Converting Julia values
+
+[`to_openmath`](@ref) and [`from_openmath`](@ref) are the extension points.
+
+```jldoctest
+julia> using OpenMath
+
+julia> to_openmath(3 // 4)
+OMA(OMS(nums1#rational), OMI(3), OMI(4))
+
+julia> from_openmath(to_openmath([1, 2, 3]))
+3-element Vector{Int64}:
+ 1
+ 2
+ 3
+```
+
+A third-party type joins in by adding one method — no subtyping required:
+
+```jldoctest
+julia> using OpenMath
+
+julia> struct Celsius
+           value::Float64
+       end
+
+julia> OpenMath.to_openmath(c::Celsius) =
+           OMS"http://example.org/cd#units#celsius"(to_openmath(c.value));
+
+julia> to_openmath(Celsius(21.5))
+OMA(OMS(http://example.org/cd#units#celsius), OMF(21.5))
+```
+
+
+
+<!-- object-model.md -->
+
+# Object model
+
+Every OpenMath 2.0 object kind has its own concrete type. [`kind`](@ref) returns
+the tag the standard uses.
+
+| Julia type | Tag | Standard |
+|---|---|---|
+| [`OMInteger`](@ref) | `OMI` | §2.1.1 |
+| [`OMFloat`](@ref) | `OMF` | §2.1.1 |
+| [`OMString`](@ref) | `OMSTR` | §2.1.1 |
+| [`OMBytes`](@ref) | `OMB` | §2.1.1 |
+| [`OMVariable`](@ref) | `OMV` | §2.1.1 |
+| [`OMSymbol`](@ref) | `OMS` | §2.1.1 |
+| [`OMApplication`](@ref) | `OMA` | §2.1.1 |
+| [`OMBinding`](@ref) | `OMBIND` | §2.1.1 |
+| [`OMError`](@ref) | `OME` | §2.1.1 |
+| [`OMAttribution`](@ref) | `OMATTR` | §2.1.1 |
+| [`OMForeign`](@ref) | `OMFOREIGN` | §2.1.1 |
+| [`OMReference`](@ref) | `OMR` | §3.1.2 |
+
+## Illegal states are unrepresentable
+
+Several constraints of the grammar are carried by the type signatures rather than
+checked afterwards, which is strictly stronger:
+
+- [`OMError`](@ref) takes an [`OMSymbol`](@ref) head.
+- [`OMBinding`](@ref) takes [`OMBoundVariable`](@ref)s.
+- [`OMForeign`](@ref) is **not** an [`OMNode`](@ref). Foreign content is not an
+  OpenMath object, and the grammar admits it only as an attribute value or an
+  error argument. Those positions are typed [`OMOrForeign`](@ref).
+
+What [`validate`](@ref) reports is everything about the *graph* that types cannot
+express: reference cycles, dangling references, duplicate `id`s, `cdbase` URI
+syntax, and the depth and node budgets.
+
+## Equality
+
+`==` is structural and disregards `id`, because an `id` anchors an `OMR`
+reference and carries no mathematical content. Use [`isequal_with_ids`](@ref)
+when you are testing the fidelity of a round-trip.
+
+```jldoctest
+julia> using OpenMath
+
+julia> OMInteger(1; id = "a") == OMInteger(1; id = "b")
+true
+
+julia> isequal_with_ids(OMInteger(1; id = "a"), OMInteger(1; id = "b"))
+false
+```
+
+Floats compare by `isequal`, not `==`: the hexadecimal encoding distinguishes
+`NaN` from `NaN` with a different payload, and `+0.0` from `-0.0`, so the object
+model has to as well.
+
+```jldoctest
+julia> using OpenMath
+
+julia> OMFloat(NaN) == OMFloat(NaN)
+true
+
+julia> OMFloat(0.0) == OMFloat(-0.0)
+false
+```
+
+## Names
+
+Symbol, variable and content dictionary names must match the `Name` production of
+standard §2.3. Constructors check this, so an invalid name cannot enter the model.
+
+```jldoctest
+julia> using OpenMath
+
+julia> OMVariable("has space")
+ERROR: OpenMathNameError: invalid variable name "has space" at character 4 (' '); see the OpenMath 2.0 standard §2.3
+```
+
+
+
+<!-- passes.md -->
+
+# Validation and normalisation
+
+## Validation
+
+[`validate`](@ref) returns every problem it finds, in document order, and never
+throws — whatever the input.
+
+```jldoctest
+julia> using OpenMath
+
+julia> obj = OMApplication(OMS"arith1#plus", [OMReference("#nowhere")]);
+
+julia> only(validate(obj))
+OMValidationIssue(:dangling_reference at /arguments[1]: no element carries the id "nowhere" [omstd20 §3.1.2])
+```
+
+Each issue carries the path to the offending sub-object and a citation of the
+clause it violates.
+
+## `cdbase` scoping
+
+`cdbase` scopes lexically (standard §2.1.4): a symbol inherits the base of the
+nearest enclosing element that declares one. [`resolve_cdbase`](@ref) pushes the
+inherited value onto every symbol, which is what makes two objects comparable
+regardless of where the attribute happened to be written.
+[`minimize_cdbase`](@ref) is the inverse, and is what a writer wants.
+
+```jldoctest
+julia> using OpenMath
+
+julia> a = OMApplication(OMS"arith1#plus", [OMInteger(1)]);
+
+julia> resolve_cdbase(a).applicant.cdbase
+"http://www.openmath.org/cd"
+
+julia> minimize_cdbase(resolve_cdbase(a)) == a
+true
+```
+
+## Structure sharing
+
+[`expand_references`](@ref) replaces each `OMR` by a copy of its referent, and
+refuses a cycle — "an OpenMath element may not dominate itself".
+
+```jldoctest
+julia> using OpenMath
+
+julia> cyclic = OMApplication(OMS"arith1#plus", [OMReference("#a")]; id = "a");
+
+julia> expand_references(cyclic)
+ERROR: OpenMathReferenceError: reference cycle: an OpenMath element may not dominate itself (#a)
+```
+
+## Canonical form
+
+[`canonicalize`](@ref) is the normal form used for comparison: references
+expanded, attributions flattened, `cdbase` resolved, `id`s dropped. It is
+idempotent.
+
+```jldoctest
+julia> using OpenMath
+
+julia> c = canonicalize(OMS"arith1#plus"(OMInteger(1)));
+
+julia> canonicalize(c) == c
+true
+```
+
+
+
+<!-- security.md -->
+
+# Security
+
+`OpenMath.jl` decodes documents that arrive over the network — SCSCP sessions,
+HTTP payloads, files of unknown provenance. Every entry point is treated as
+accepting hostile input.
+
+## Explicit stacks, not native recursion
+
+A `StackOverflowError` cannot be caught reliably in Julia and can take down the
+process. Every traversal therefore uses an explicit stack, and depth is checked
+before any bounded recursion is entered.
+
+```jldoctest
+julia> using OpenMath
+
+julia> deep = foldl((a, _) -> OMS"arith1#plus"(a), 1:500_000; init = OMInteger(0));
+
+julia> depth(deep)
+500001
+```
+
+## Configurable limits
+
+[`OMLimits`](@ref) ceilings are scoped with [`with_limits`](@ref) and restored
+even when the body throws.
+
+```jldoctest
+julia> using OpenMath
+
+julia> nested = OMS"arith1#plus"(OMS"arith1#times"(OMInteger(1)));
+
+julia> depth(nested)
+3
+
+julia> with_limits(OMLimits(; max_depth = 2)) do
+           canonicalize(nested)
+       end
+ERROR: OpenMathLimitError: max_depth exceeded (3 > 2); raise it with `with_limits`
+```
+
+## Names are never interned
+
+Julia never garbage-collects interned `Symbol`s. Turning attacker-controlled
+names from a parsed document into symbols would be an unbounded memory leak, so
+[`OMVariable`](@ref) and [`OMSymbol`](@ref) hold `String`s.
+
+## Parsed content is never evaluated
+
+A parsed OpenMath object is data. It never reaches `eval`, `include_string` or
+`Meta.parse`, and a quality gate in the test suite enforces this over the whole
+source tree.
+
+Please report vulnerabilities privately; see `SECURITY.md` in the repository.
+
+## Every traversal, without exception
+
+The claim above — that every traversal uses an explicit stack — was not true for
+one of them until Phase 8. The JSON reader built its tree by recursion, survived
+about 10 000 levels on a default stack and not 20 000, and Julia's message on the
+way out was "program state may be corrupted".
+
+It was unreachable at the default limits, because `max_depth` is 10 000 and the
+JSON scanner counts *JSON* nesting — roughly four levels per OpenMath level — so
+a document was refused at about 2 500 OpenMath levels. It became reachable by
+raising `max_depth`, which is the documented way to accept a deep document.
+
+The builder now uses an explicit stack like the others, and a 200 000-level JSON
+document parses. `test/unit/cross_encoding.jl` asserts the property over all four
+encodings at once, which is where it should have been all along: the conformance
+driver checks that the encodings agree about *objects*, and both readers agreed
+about objects right up to the point where one of them stopped producing any.
+
+
+
+<!-- design/xml-backend.md -->
+
+# Decision D1 — the XML backend
+
+**Status**: settled, 2026-09-17; re-examined against `XML.jl` with measurements on
+the same date. **Outcome**: a purpose-built pull tokenizer, in
+`src/xml/tokenizer.jl`.
+
+## The candidates
+
+| Option | Mandatory dependency |
+|---|---|
+| `EzXML.jl` | `XML2_jll` — a **compiled binary artifact** |
+| `XML.jl` | pure Julia |
+| Purpose-built tokenizer | none |
+
+**REQ-PRJ-002** — no mandatory dependency requiring a compiled binary artifact —
+removes `EzXML.jl` from the core outright. It says nothing about `XML.jl`, which
+is pure Julia, and an earlier draft of this page wrongly implied otherwise. The
+case against `XML.jl` has to be made on its own, which is what follows.
+
+## Measured against `XML.jl` v0.4.6
+
+### Entity handling — the deciding difference
+
+`XML.jl` expands the five predefined entities and numeric character references,
+exactly as we do. The difference is what happens to an entity nobody declared:
+
+| Input | `XML.jl` | `OpenMath.jl` |
+|---|---|---|
+| `&lt;` `&gt;` `&amp;` `&quot;` `&apos;` | expands | expands |
+| `&#65;` `&#x41;` | expands | expands |
+| CDATA | handled | handled |
+| **`&xxe;`** | **passes it through as the literal text `"&xxe;"`** | rejects, naming the entity |
+| `<!DOCTYPE …>` | accepted | rejected |
+| `<!ENTITY e "…">` then `&e;` | accepted, `&e;` stays literal | rejected |
+| billion laughs | accepted; safe, because nothing is expanded | rejected |
+
+`XML.jl` is not *unsafe* here — it never expands a declared entity, so the
+amplification attack has nothing to amplify. It is **silently lenient**, and for
+this format that is worse than either expanding or refusing:
+
+```
+<OMOBJ xmlns="…"><OMSTR>&xxe;</OMSTR></OMOBJ>
+
+OpenMath.jl  → OpenMathParseError: undeclared entity reference &xxe;
+XML.jl       → accepted; the OMSTR would hold the literal "&xxe;",
+               which written back out becomes "&amp;xxe;"
+```
+
+The document has changed meaning and nothing reported it. A round trip that
+silently alters content is the one failure this package is built to prevent
+(REQ-OM-003), and it would be invisible to our own conformance suite, because our
+reader and writer would agree with each other on the wrong value.
+
+Detecting this on top of `XML.jl` is not possible after the fact: once the text is
+decoded, an expanded `&lt;` and a literal `<` are the same character, so there is
+nothing left to inspect. The check has to happen during tokenisation, which means
+owning the tokeniser.
+
+### Verbatim capture — a point in `XML.jl`'s favour
+
+`OMFOREIGN` content must be preserved as source, not as parsed nodes (see
+`OMForeign`). I assumed a general parser could not do this. **That was wrong**:
+`XML.jl` exposes `sourcetext` and `sourcespan` on a `LazyNode`, which return the
+original bytes. The capability is there, and this argument should not be used
+against it.
+
+What remains is a smaller, honest point: the traversal API for reaching a specific
+`LazyNode` took several attempts to get right, whereas `read_raw_until_end!` is one
+call. That is ergonomics, not capability.
+
+### Performance — against us
+
+200 KiB document, 2000 subtrees, best of 20 runs:
+
+| | Time | Allocation |
+|---|---|---|
+| `XML.jl` → generic `Node` tree | **2.45 ms** | 2.6 MiB |
+| `OpenMath.jl` → validated `OMObject` | 13.9 ms | 8.3 MiB |
+
+We are about **5.7× slower** and allocate 3× more. The comparison flatters us
+slightly — we also validate names, resolve `cdbase` scoping, parse bignums and
+decode base64, none of which `XML.jl` does — so the honest reading is that 2.45 ms
+is a *floor* on what a rewrite could reach, not a figure it would hit. But the
+direction is not in doubt: owning the tokeniser costs throughput, and no earlier
+version of this page said so.
+
+## Conclusion
+
+The decision stands, on one argument rather than the three originally claimed:
+**OpenMath needs an undeclared entity reference to be an error, and that can only
+be decided while tokenising.** Everything else is secondary — the zero-dependency
+property is nice, `sourcetext` shows the verbatim argument was mine to lose, and
+performance is a real cost we are choosing to pay.
+
+A second argument emerged only in use, after the decision: the CD parser
+(`src/cd/parser.jl`) reuses the same tokeniser to lift `<OMOBJ>` documents out of
+`.ocd` files, so Content Dictionary examples get exactly the treatment any other
+document gets. That was not foreseen and does not justify the decision on its own,
+but it is why the cost has been paid once rather than twice.
+
+## Revisit if
+
+- **Throughput becomes a complaint.** 13.9 ms for 200 KiB is fine for documents
+  and poor for a firehose. The fix is to optimise our tokeniser, not to adopt a
+  parser whose leniency we would then have to undo.
+- **`XML.jl` grows a strict mode** that rejects undeclared entities and DTDs. Then
+  the deciding argument disappears and the balance tips.
+- **The tokeniser needs namespace prefixes beyond the OpenMath URI, or
+  `OMFOREIGN` content ever needs parsing rather than capturing.** Either would
+  mean we are reimplementing a general parser.
+
+## The `EzXML` extension, dropped
+
+An earlier version of this page promised `EzXML.jl` interop as a package
+extension, so that a caller already holding an `EzXML.Document` would pay no
+conversion cost. That is dropped, and the reason is the same argument the rest of
+this page makes.
+
+An `EzXML.Document` has already been parsed. Whatever its parser did with
+entities, DTDs and undeclared references has already happened, and the result is
+a tree of text nodes in which an expanded `&lt;` and a literal `<` are the same
+character. So a reader that starts from one **cannot make the guarantee the
+deciding argument above rests on** — that an undeclared entity reference is an
+error — and could not tell a caller so.
+
+The extension would therefore have been a second entry point with quietly weaker
+guarantees than `read_xml`, reachable by loading an unrelated package. The
+convenience it buys is one `string(doc)` call. That is not a trade worth making,
+and REQ-XML-011 is withdrawn rather than deferred.
+
+
+
+<!-- design/json-backend.md -->
+
+# Decision D3 — the JSON backend
+
+**Status**: settled, 2026-09-17. **Outcome**: a purpose-built scanner, in
+`src/json/scanner.jl`. Neither `JSON.jl` nor `JSON3.jl` is a dependency.
+
+## Why not a JSON library
+
+The card offered `JSON.jl` v1 against `JSON3.jl`, with the 1.10 LTS as the
+tie-breaker. Both are pure Julia, so REQ-PRJ-002 does not decide it the way it
+decided [D1](xml-backend.md). What decides it is one line of the standard:
+
+```json
+{"kind": "OMI", "integer": -120}
+```
+
+`integer` is a **JSON number**, and OpenMath integers have no predefined range
+(standard §2.1.1). So this is legal:
+
+```json
+{"kind": "OMI", "integer": 1606938044258990275541962092341162602522202993782792835301376}
+```
+
+A JSON parser that hands back a `Float64` — which is the default in most of them,
+because the JSON spec says nothing about precision — has already destroyed that
+value before our code sees it. REQ-JSN-003 is a **Must**, and satisfying it on top
+of a general parser means either configuring an arbitrary-precision mode that
+differs between the two candidates, or post-processing text the parser has already
+thrown away.
+
+The scanner here keeps every number as its **source text** and does not interpret
+it until the reader knows which OpenMath field it belongs to. `"integer"` becomes
+a `BigInt`, `"float"` becomes a `Float64`, and neither ever passes through the
+other's type.
+
+The same three arguments as D1 apply again:
+
+- **REQ-SEC-001** — nothing outside the `OpenMathError` family escapes, for any
+  byte sequence. Wrapping a third-party parser means catching everything, which
+  loses the byte offset **REQ-API-007** wants.
+- **REQ-SEC-002** — depth is bounded by an explicit stack, not by the native one.
+- **REQ-PRJ-002** — the core keeps its promise of no mandatory dependency at all,
+  which is stronger than the requirement asks.
+
+## What the subset costs us
+
+The scanner is ~300 lines: objects, arrays, strings with the six short escapes and
+`\uXXXX` including surrogate pairs, numbers with JSON's leading-zero rule, and the
+three literals. There is no streaming API, no lazy access, no `StructTypes`
+integration — none of which this encoding needs.
+
+## Cross-check
+
+Our output was compared byte for byte against the reference implementation on
+seven corpus items covering every composite kind. It matched exactly, including
+member order, `"error"` for the `OME` head and `"base64"` for `OMB`. That is a
+confirmation, not a dependency: `just oracle` is opt-in and no part of the package
+requires it.
+
+## Revisit if
+
+- a caller needs to embed OpenMath inside a larger JSON document and wants to hand
+  us an already-parsed value. That is an argument for an *optional* extension over
+  a JSON library, not for making one a core dependency.
+
+
+
+<!-- api.md -->
+
+# API reference
+
+```@meta
+CurrentModule = OpenMath
+```
+
+## Module
+
+```@docs
+OpenMath
+```
+
+## Object model
+
+```@docs
+OMNode
+OMLeaf
+OMComposite
+OMOrForeign
+OMInteger
+OMFloat
+OMString
+OMBytes
+OMVariable
+OMSymbol
+OMApplication
+OMBinding
+OMError
+OMAttribution
+OMForeign
+OMReference
+isinternal
+reference_target
+OMAttributePair
+OMBoundVariable
+OMObject
+@OMS_str
+@om_str
+@omxml_str
+@omjson_str
+CD_BASE
+XML_NS
+```
+
+## Traversal
+
+```@docs
+kind
+children
+walk
+collect_nodes
+count_nodes
+depth
+map_openmath
+```
+
+## Equality
+
+```@docs
+isequal_with_ids
+```
+
+## Validation
+
+```@docs
+validate
+isvalid_openmath
+OMValidationIssue
+```
+
+## Normalisation passes
+
+```@docs
+resolve_cdbase
+minimize_cdbase
+collapse_attributions
+expand_references
+strip_ids
+canonicalize
+```
+
+## Limits
+
+```@docs
+OMLimits
+limits
+with_limits
+```
+
+## Conversion
+
+```@docs
+to_openmath
+from_openmath
+```
+
+## Encodings
+
+```@docs
+OpenMath.parse
+OpenMath.parsefile
+OpenMath.sniff_format
+read_xml
+OpenMath.xml
+write_xml
+read_json
+OpenMath.json
+write_json
+read_mathml
+OpenMath.mathml
+write_mathml
+MATHML_NS
+read_binary
+OpenMath.binary
+write_binary
+```
+
+## Phrasebooks
+
+```@docs
+Phrasebook
+define!
+define_variable!
+define_leaf!
+interpret
+express
+symbols
+base_vocabulary
+with_phrasebook
+current_phrasebook
+OpenMath.symbolics_phrasebook
+```
+
+## Content Dictionaries
+
+```@docs
+ContentDictionary
+CDDefinition
+STSSignatures
+CDRegistry
+OpenMath.parse_cd
+OpenMath.parse_sts
+OpenMath.sts_arity
+OpenMath.register!
+OpenMath.isempty_registry
+load_cd_directory
+load_sts_directory!
+lookup
+describe
+signature
+arity
+validate_against_cds
+```
+
+## Errors
+
+```@docs
+OpenMathError
+OpenMathNameError
+OpenMathLimitError
+OpenMathReferenceError
+OpenMathConversionError
+OpenMathParseError
+```
+
+## Names
+
+```@docs
+isvalidname
+isvalidcdbase
+checkname
+is_name_start_char
+is_name_char
+```
+
