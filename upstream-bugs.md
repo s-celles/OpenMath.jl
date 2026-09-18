@@ -226,7 +226,111 @@ The two were filed separately on purpose: the first has a patch and a clear clos
 condition, the second is a governance question only the Society can answer, and
 bundling them would have blocked the easy fix behind the open question.
 
-## OpenMath 2.0 standard §3.2 — five defects and one undecidable question
+## GAP openmath 11.5.5 — its XML and binary writers disagree about one string
+
+- **Found**: 2026-09-18, following a question about whether to adopt GAP's
+  conventions wholesale
+- **Affected**: GAP `openmath` package v11.5.5, GAP 4.15.1. The binary encoding
+  code is unchanged since 2016.
+- **Reported**: **no — recorded and deliberately not filed** (see below)
+- **Workaround**: none needed on our side, and none possible. We write what
+  §3.2.2 defines; a non-ASCII string does not survive an exchange with GAP in
+  either direction, and that is documented in `docs/src/round-trip.md`.
+
+### The shortest statement
+
+GAP writes one string in its two encodings, and they denote different objects.
+
+```
+GAP writes "caf\303\251" (café, as UTF-8 bytes, which is how GAP holds text)
+
+  XML     <OMSTR>café</OMSTR>                     4 characters
+  binary  06 05 63 61 66 c3 a9                    5 characters: c a f Ã ©
+```
+
+Read by any conforming reader, those are not the same `OMSTR`. The standard's
+whole premise is that its encodings denote the same objects.
+
+### Why
+
+GAP strings are byte sequences with no declared encoding — `Length("caf\303\251")`
+is **5**, not 4. Its binary writer is exactly faithful to that model: it emits
+`Length(s)` as the count and the bytes raw.
+
+§3.2.2 offers two string encodings and neither is UTF-8:
+
+> In the case of LATIN-1 it is encoded as the one byte character string tags
+> (token identifier 6) […] there is **the number of characters** […] followed by
+> **the characters** in the string.
+
+Token 6 is ISO-8859-1: one byte per character. Token 7 is UTF-16, and exists
+precisely for what Latin-1 cannot carry; GAP never emits it. So GAP's UTF-8 bytes
+under token 6 say something other than what GAP meant.
+
+XML escapes this because a document declares its encoding and the bytes pass
+through as UTF-8. The binary encoding has no declaration — the *token* is the
+declaration — which is where GAP's byte model and OpenMath's Unicode character
+model (§2.1.1) part company.
+
+### Reproducer
+
+```gap
+gap> x := "caf\303\251";; Length(x);
+5
+gap> s := OutputTextFile("b.bin", false);; SetPrintFormattingStatus(s, false);;
+gap> OMPutObject(OpenMathBinaryWriter(s), x);; CloseStream(s);
+gap> OMPrint(x);
+<OMOBJ xmlns="http://www.openmath.org/OpenMath" version="2.0">
+	<OMSTR>café</OMSTR>
+</OMOBJ>
+```
+
+```sh
+$ xxd -p b.bin
+180605636166c3a919          # token 6, length 5, raw UTF-8 bytes
+```
+
+Verified for `λ` too: `18 06 02 ce bb 19`, which §3.2.2 reads as `Î»`.
+
+### Where the blame sits
+
+Mostly upstream of GAP. §3.2 specifies UTF-8 for content dictionary names, symbol
+names, variable names, `cdbase` URIs and foreign encoding attributes — and offers
+no UTF-8 string token, so `OMSTR` alone must be Latin-1 or UTF-16. See item 7 of
+the standard entry above. An implementation holding UTF-8 text is pushed toward
+exactly what GAP did: pass the bytes through.
+
+It remains GAP's defect in the narrow sense — it *could* transcode, and its own
+two encodings disagreeing is a fact about GAP alone. But the standard made the
+correct path the unnatural one, and that is the more useful thing to fix.
+
+### Why it is recorded and not filed
+
+**Decision, 2026-09-18.** Unlike issues #31 and #32, this is not a bug with a
+one-line fix. It is a mismatch between GAP's string model and OpenMath's, and the
+conformant remedy — transcode to Latin-1 where it fits and UTF-16 otherwise, both
+ways — would change bytes GAP has emitted since 2016. That is a compatibility
+decision for its maintainers, not a patch, and filing it would be asking them to
+take it on someone else's timetable.
+
+Nothing in this package depends on the outcome. We write what §3.2.2 defines, our
+own round trip is exact, and the divergence is documented where a user who
+interoperates with GAP will meet it.
+
+### A note on how it was nearly missed
+
+`just oracle-gap` reported **36/36 agreeing** on these very strings, and was
+right to. It compares values through GAP's own equality, GAP's bytes come back to
+GAP unchanged, and a disagreement about what bytes *mean* is invisible to that
+comparison. Its string sample was also ASCII-only, which cannot distinguish two
+encodings at all.
+
+Both are fixed — the sample has non-ASCII entries and a second kind of probe
+compares interpretations rather than values — but the general point is the
+oracle's, not the defect's: **an oracle that compares through one
+implementation's equality cannot see the two disagreeing about semantics.**
+
+## OpenMath 2.0 standard §3.2 — six defects and one undecidable question
 
 - **Found**: 2026-09-17, roadmap Phase 4, transcribing the standard's worked byte
   sequences before writing the codec
@@ -348,6 +452,46 @@ is OpenMath 2 — an example carried over and given a new first byte.
 This is offered as an account, not a finding. What supports it is that every
 defect in §3.2 is either in a `+64` row or in a figure that predates the OpenMath
 2 sharing mechanism, and none is anywhere else.
+
+### 7. §3.2 has no UTF-8 string, while mandating UTF-8 for everything else in it
+
+Not a slip; a gap in the design, and the one with a live consequence.
+
+An audit of every encoding named in §3.2.2:
+
+| Field | Encoding the standard specifies |
+|:--|:--|
+| Content Dictionary name, symbol name | **UTF-8** |
+| the `id` of a shared object | **UTF-8** |
+| variable name | **UTF-8** |
+| `cdbase` URI (token 9) | **UTF-8** |
+| the `encoding` attribute of a foreign object | **UTF-8** |
+| a foreign payload | "should be encoded in **UTF-8** to produce a stream of bytes" |
+| **`OMSTR`** | **ISO-8859-1 (token 6) or UTF-16 (token 7)** |
+
+So a conforming document carries a variable named `λ` as UTF-8 and a *string*
+containing `λ` as UTF-16, in adjacent tokens. There is no UTF-8 string token at
+all.
+
+That matters because the other three endorsed encodings are UTF-8 native — XML
+and Strict Content MathML by declaration, JSON by definition — so §3.2 is the
+only place in the standard where an implementation holding UTF-8 text cannot pass
+it through. The natural thing to do is non-conformant, and the conformant thing
+requires transcoding a string differently from the variable name beside it.
+
+**This is not hypothetical.** GAP's `openmath` package writes UTF-8 bytes under
+token 6, which makes its own XML and binary writers disagree about the same
+string — recorded below. It is fair to say the standard led it there.
+
+The binary encoding dates from OpenMath 1, when Latin-1 and UTF-16 were the
+conventional pair. OpenMath 2 revised §3.2 substantially — base-256 integers,
+`cdbase` scopes, foreign objects, streaming, all of them specifying UTF-8 — and
+did not revisit the string tokens.
+
+**Suggested**: a UTF-8 string token, which the unassigned identifiers leave room
+for; or, at minimum, an erratum noting the asymmetry, so that an implementer
+reading "the encoding attribute is encoded in UTF-8" three paragraphs earlier is
+not led to assume the same of `OMSTR`.
 
 ### Why this matters more than a typo usually would
 
@@ -520,9 +664,14 @@ document alone with no toolchain — went to
 with a patch offered for the four editorial items and the undecidable one put as
 a question rather than an assertion.
 
-So of the nine things recorded in this file, three are filed and six are not, and
-each of the six has a reason written beside it. This file is not a list of
+So of the ten things recorded in this file, three are filed and seven are not,
+and each of the seven has a reason written beside it. This file is not a list of
 pending tasks.
+
+The newest — GAP's XML and binary writers disagreeing about one string — is
+recorded and deliberately not filed: it is a model mismatch rather than a bug
+with a patch, its conformant remedy would change bytes GAP has emitted since
+2016, and nothing here depends on the outcome.
 
 The reasoning: four of the five are straightforward gaps in a young v0.1.7 crate
 rather than logic errors, and one — `OMR` structure sharing — is already listed as

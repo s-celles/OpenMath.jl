@@ -35,6 +35,12 @@ const VALUES = [
     "2147483647", "-2147483648", "2147483648", "-2147483649",
     "2^63-1", "-2^63", "2^100", "-2^100", "2^1000",
     "\"\"", "\"hello\"", "\"a<b&c\"",
+    # Non-ASCII on purpose. The first version of this list was ASCII-only, which
+    # is why it took a hand-written probe to notice that GAP writes UTF-8 bytes
+    # under the ISO-8859-1 token with a *byte* count, where §3.2.2 says that
+    # token carries one byte per character. A sample that cannot distinguish two
+    # encodings is a sample that tests neither.
+    "\"caf\\303\\251\"", "\"\\316\\273\"",
     "1.5", "-1.5", "1.e-10", "1.e300",
     "[1,2,3]", "[]", "[[1,2],[3,4]]",
     "true", "false", "1/3", "-22/7"
@@ -65,6 +71,26 @@ const GAP_INTEGER_PROBES = [
     (UInt8[0x01, 0x00], 256, 16),
     (UInt8[0x10, 0x00], 4096, 256),
     (UInt8[0x0f, 0xff], 4095, 4095)                           # dropped zero was leading
+]
+
+# A second kind of probe, for a divergence the value comparison above *cannot*
+# see. The round trip below agrees — GAP's bytes come back to GAP unchanged — and
+# the two implementations still disagree about what those bytes say.
+#
+# §3.2.2 gives token 6 as ISO-8859-1, "the number of characters as a byte …
+# followed by the characters in the string": one byte per character. GAP writes
+# UTF-8 bytes under that token with a *byte* count, so `café` goes out as
+# 63 61 66 c3 a9 with length 11 where the standard asks for 63 61 66 e9 with
+# length 10. Reading it as the standard defines gives `cafÃ©`.
+#
+# Neither side loses data; they disagree about the encoding. That makes it
+# invisible to any oracle that compares values through one implementation's own
+# equality, which is a limitation of this file worth stating rather than a
+# property of the defect.
+const GAP_STRING_PROBES = [
+    # (what GAP is asked to write, the bytes it emits, what §3.2.2 says they mean)
+    ("\"caf\\303\\251\"", "18060b636166c3a9" * "19", "cafÃ©"),
+    ("\"\\316\\273\"", "1806" * "02" * "cebb" * "19", "Î»")
 ]
 
 gap_available() = isfile(GAP) && isdir(GAPROOT)
@@ -186,6 +212,26 @@ function main(argv)
     end
     total = length(VALUES) + length(WE_WRITE_ONLY)
 
+    # --- probe the encoding divergence the comparison cannot see -------------
+    for (expr, _, meaning) in GAP_STRING_PROBES
+        path = joinpath(dir, "s" * string(hash(expr); base = 16) * ".bin")
+        run_gap("""
+        LoadPackage("openmath");;
+        s := OutputTextFile("$(path)", false);;
+        SetPrintFormattingStatus(s, false);;
+        OMPutObject(OpenMathBinaryWriter(s), $(expr));;
+        CloseStream(s);;
+        QUIT;""")
+        isfile(path) || continue
+        ours = read_binary(read(path)).object
+        if ours isa OMString && ours.value == meaning
+            push!(findings,
+                Disagreement("string " * expr, :encoding,
+                    "GAP wrote UTF-8 bytes under the ISO-8859-1 token; §3.2.2 " *
+                    "reads them as $(repr(meaning))"))
+        end
+    end
+
     # --- probe the known upstream defect -------------------------------------
     fixed = 0
     for (digits, correct, known) in GAP_INTEGER_PROBES
@@ -212,7 +258,10 @@ function main(argv)
     # Report by direction. They are not the same question: "can GAP read what we
     # write" decides whether this package is usable on an SCSCP wire, and "can we
     # read what GAP writes" is bounded by what GAP can write at all.
-    blocked = [f for f in findings if f.direction === :gap_write || f.direction === :read]
+    blocked = [f
+               for f in findings
+               if f.direction === :gap_write || f.direction === :read ||
+                      f.direction === :encoding]
     real = [f for f in findings if !(f in blocked)]
 
     println("  we write → GAP reads   ", total - length(real), "/", total, " agree")
@@ -225,7 +274,9 @@ function main(argv)
             first(replace(f.detail, r"\s+" => " "), 120))
     end
     for f in blocked
-        println("    · ", rpad(f.value, 14),
+        println("    · ", rpad(f.value, 22),
+            f.direction === :encoding ?
+            "encoding divergence — see upstream-bugs.md" :
             "GAP's binary writer cannot emit this — see upstream-bugs.md")
     end
     if fixed > 0

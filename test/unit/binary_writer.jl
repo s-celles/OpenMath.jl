@@ -75,13 +75,14 @@ end
         b[(b[1] == 0x58 ? 4 : 2):(end - 1)])
 
     # The general form: big integer tag, length, sign/base byte, digits. Of the
-    # three bases §3.2.2 allows we write base 16 — the densest of the two that
-    # GAP reads correctly; it mis-reads base 256. See upstream-bugs.md.
+    # three bases §3.2.2 allows we write base 10 — not the densest, but the only
+    # one any shipping implementation *writes*, so the only one whose reader is
+    # exercised by someone else's round trips. See D9 in the design notes.
     @test body(big(2)^200)[1] == 0x02
-    @test body(big(2)^200)[2] == 0x33           # 51 hexadecimal digits
-    @test body(big(2)^200)[3] == 0x6b           # '+' | the base-16 mask
-    @test body(-big(2)^200)[3] == 0x6d          # '-' | the base-16 mask
-    @test String(body(big(2)^200)[4:end]) == string(big(2)^200; base = 16)
+    @test body(big(2)^200)[2] == 0x3d           # 61 decimal digits
+    @test body(big(2)^200)[3] == 0x2b           # '+' | the base-10 mask (0)
+    @test body(-big(2)^200)[3] == 0x2d          # '-' | the base-10 mask
+    @test String(body(big(2)^200)[4:end]) == string(big(2)^200)
 
     for v in (0, 1, -1, 127, -128, 128, -129, typemax(Int32), typemin(Int32),
         Int64(typemax(Int32)) + 1, Int64(typemin(Int32)) - 1,

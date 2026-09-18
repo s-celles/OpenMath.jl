@@ -19,6 +19,7 @@ makedocs(;
         "Encodings" => "encodings.md",
         "Validation & passes" => "passes.md",
         "Security" => "security.md",
+        "Round trips" => "round-trip.md",
         "Performance" => "performance.md",
         "Design notes" => ["design/xml-backend.md", "design/json-backend.md",
             "design/binary-backend.md", "design/phrasebook.md"],

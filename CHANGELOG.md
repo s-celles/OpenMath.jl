@@ -37,6 +37,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/src/round-trip.md` — what survives a round trip and what does not, in one
+  place. The three text encodings lose nothing; the binary encoding loses exactly
+  four things, each a consequence of what §3.2 has no field for: an `OMFOREIGN`
+  whose `encoding` is `""` (a zero length is the only way to say both "absent"
+  and "empty"), an `id` nothing references, the *names* of shared objects — the
+  structure is exact — and a forward reference, which is refused rather than
+  silently expanded. The table is asserted in `test/unit/cross_encoding.jl`, so a
+  new loss fails and so does a loss quietly fixed without the page being updated.
+
 - Reading JSON is twice as fast and allocates 41 % less: 38 → 22.3 allocations
   per node and 2.40 → 1.20 ms on a 1601-node document, which is parity with the
   XML reader. Two defects, both found by following the benchmark table rather

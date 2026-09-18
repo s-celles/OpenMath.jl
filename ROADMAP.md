@@ -505,8 +505,12 @@ corpus item covers it the day it lands, exactly as happened when JSON arrived.
       `Symbolics` output and OpenMath, for callers who already hold non-strict
       Content MathML from SBML or the SciML stack. That is the `Symbolics`
       phrasebook wearing a MathML hat, so it waits on Phase 6.
-- [ ] Documented, explicit list of what does **not** round-trip; silent loss is
-      worse than an error.
+- [x] `docs/src/round-trip.md` — the explicit list of what does **not** round-trip,
+      in one place rather than scattered across six design notes. The three text
+      encodings lose nothing; the binary encoding loses exactly four things, each
+      a consequence of what §3.2 has no field for. The table is **asserted** in
+      `test/unit/cross_encoding.jl`, so a new loss fails, and so does a loss that
+      is quietly fixed without the page being updated.
 
 **Status 2026-09-17** — done, apart from the `MathML.jl` normalisation extension.
 Enabling it in the conformance driver took the suite from 6070 assertions to 6462

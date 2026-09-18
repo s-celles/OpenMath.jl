@@ -347,14 +347,27 @@ end
 # --- integers -----------------------------------------------------------------
 
 # §3.2.2 gives four formats and permits "a 'small' integer in any 'bigger'
-# format". We take the smallest that fits, and base 16 for the general form.
+# format". We take the smallest that fits, and **base 10** for the general form.
 #
-# Base 256 is denser and was the obvious choice. It is also the one GAP reads
-# wrongly: it renders each digit byte as hexadecimal without padding to two
-# characters, so any byte below 0x10 drops a zero and everything to its right
-# shifts by a nibble (see `upstream-bugs.md`). Base 16 is what the standard's own
-# worked example uses, and the extra bytes are worth not handing the only other
-# implementation a smaller number than the one we meant.
+# That is not the densest choice, and the reasoning took two corrections.
+#
+# Base 256 is densest and was the obvious pick. It is also the one GAP reads
+# wrongly — it renders each digit byte as hexadecimal without padding to two
+# characters, so any byte below 0x10 drops a zero (see `upstream-bugs.md`). So
+# base 16, which GAP reads correctly and the standard gives a worked example of.
+#
+# Then: why not simply write what the only other implementation writes? GAP emits
+# base 10. Decision **D8** already adopted GAP's document tag on exactly that
+# reasoning, and applying it to one field and not the other was an inconsistency
+# rather than a judgement.
+#
+# The cost is smaller than it looks. Base 16 saves about 17 % of the *digits of a
+# big integer*, which on a 1601-node document with one such integer is ten bytes
+# in eleven thousand — 0.09 %. Against that: base 10 is the only base any shipping
+# implementation *writes*, so it is the only one whose reader is exercised by
+# someone else's round trips. Base 256 was broken in GAP precisely because nothing
+# wrote it, and this session has learned three times over that the unexercised
+# path is where the defect lives.
 function _write_integer(io::IO, v::Union{Int64, BigInt}, flag::UInt8)
     if -128 <= v <= 127
         return write(io, TOK_INT | flag) + write(io, reinterpret(UInt8, Int8(v)))
@@ -363,11 +376,11 @@ function _write_integer(io::IO, v::Union{Int64, BigInt}, flag::UInt8)
         return n + _put_u32(io, reinterpret(UInt32, Int32(v)))
     end
     magnitude = BigInt(v) < 0 ? -BigInt(v) : BigInt(v)
-    digits = Vector{UInt8}(string(magnitude; base = 16))
+    digits = Vector{UInt8}(string(magnitude))
     long = needs_long(length(digits))
     n = write(io, TOK_BIGINT | flag | (long ? FLAG_LONG : 0x00))
     n += _put_len(io, length(digits), long)
-    n += write(io, (v < 0 ? SIGN_MINUS : SIGN_PLUS) | BASE_16)
+    n += write(io, (v < 0 ? SIGN_MINUS : SIGN_PLUS) | BASE_10)
     return n + write(io, digits)
 end
 

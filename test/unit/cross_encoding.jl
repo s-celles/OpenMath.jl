@@ -145,3 +145,54 @@ end
     @test interpret(safe, parsed) === parsed.name
     @test interpret(safe, parsed) isa String
 end
+
+@testitem "cross-encoding: the documented losses are exactly these" tags = [:unit] begin
+    using OpenMath
+    # docs/src/round-trip.md is a table of what survives a round trip. A table in
+    # prose drifts; this asserts it. Every row that says "identical" must be
+    # identical, and every row that says something is lost must lose exactly
+    # that — a new loss fails here, and so does a loss that quietly gets fixed
+    # without the page being updated.
+    text = ((:xml, OpenMath.xml, s -> OpenMath.parse(s; format = :xml)),
+        (:json, OpenMath.json, s -> OpenMath.parse(s; format = :json)),
+        (:mathml, OpenMath.mathml, s -> OpenMath.parse(s; format = :mathml)))
+    binary(o) = OpenMath.parse(OpenMath.binary(OMObject(o)); format = :binary).object
+
+    cases = [
+        ("OMFOREIGN with an empty encoding",
+            OMError(OMS"error1#e", OMOrForeign[OMForeign("", "x")])),
+        ("an unreferenced id", OMInteger(7; id = "keepme")),
+        ("structure sharing",
+            OMApplication(OMVariable("f"),
+                [OMApplication(OMVariable("f"), [OMVariable("a")]; id = "t"),
+                    OMReference("#t")])),
+        ("a document cdbase the root overrides",
+            OMApplication(OMS"mycd#f", [OMInteger(1)]; cdbase = "http://example.org/cd")),
+        ("a cdbase scope around a leaf", OMInteger(1))
+    ]
+
+    # The three text encodings lose nothing, including ids.
+    for (label, obj) in cases, (name, write, read) in text
+
+        back = read(write(OMObject(obj))).object
+        @test "$(name) keeps $(label)" ==
+              "$(name) $(isequal_with_ids(back, obj) ? "keeps" : "LOSES") $(label)"
+    end
+
+    # Binary loses exactly three of them, and keeps the other two.
+    @test binary(cases[1][2]).arguments[1] == OMForeign(nothing, "x")   # "" → nothing
+    @test binary(cases[2][2]) == OMInteger(7)                           # id dropped
+    @test binary(cases[2][2]).id === nothing
+    shared = binary(cases[3][2])
+    @test !isequal_with_ids(shared, cases[3][2])                        # ids renamed
+    @test expand_references(shared) == expand_references(cases[3][2])   # structure exact
+    for (label, obj) in cases[4:5]
+        @test "binary keeps $(label)" ==
+              "binary $(isequal_with_ids(binary(obj), obj) ? "keeps" : "LOSES") $(label)"
+    end
+
+    # And a forward reference is refused rather than silently expanded.
+    @test_throws OpenMath.OpenMathConversionError OpenMath.binary(
+        OMObject(OMApplication(OMVariable("f"),
+        [OMReference("#a"), OMInteger(1; id = "a")])))
+end
