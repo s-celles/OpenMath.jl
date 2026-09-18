@@ -501,10 +501,10 @@ corpus item covers it the day it lands, exactly as happened when JSON arrived.
       contains no `csymbol`, `semantics`, `cbytes` or `cerror` and targets
       `Symbolics` expressions, so it reads the dialect we reject rather than
       offering a route into the one we read. The two are complementary.
-- [ ] `ext/OpenMathMathMLExt.jl` — an optional bridge between `MathML.jl`'s
-      `Symbolics` output and OpenMath, for callers who already hold non-strict
-      Content MathML from SBML or the SciML stack. That is the `Symbolics`
-      phrasebook wearing a MathML hat, so it waits on Phase 6.
+- [x] ~~`ext/OpenMathMathMLExt.jl` — an optional bridge between `MathML.jl`'s
+      `Symbolics` output and OpenMath.~~ **Withdrawn 2026-09-18**, on evidence,
+      after the H2.5 survey below. It would contain no code, and the route it
+      wraps is lossier than the one Appendix F now gives.
 - [x] `docs/src/round-trip.md` — the explicit list of what does **not** round-trip,
       in one place rather than scattered across six design notes. The three text
       encodings lose nothing; the binary encoding loses exactly four things, each
@@ -533,6 +533,46 @@ check is only as strong as the input both sides are made to share, which is E3 a
 E7 in a third place. And the new gate asserting that every symbol this
 transformation can emit is one `base_vocabulary` knows failed on six: a document
 could transform perfectly and then be refused by the phrasebook.
+
+Surveying `MathML.jl` for the extension below then found three more of ours, all
+the same shape as `root`. `<log/>` with no `<logbase>` is base 10 (MathML 4 §4.3)
+and `transc1#log` takes the base first — the CD's own FMP reads `log(a, c) = b`
+when `a^b = c` — so we were emitting a one-argument `transc1#log`. The five
+container elements were in the §F.8 table and reachable only in *applicant*
+position, so `<set>1 2</set>` fell through to "unhandled element". And several
+refusals of real Content MathML said it was "not Content MathML at all", which is
+worse than a generic message because it tells a reader to stop looking for
+the rule.
+
+### Why the `MathML.jl` extension was withdrawn
+
+H2.5 again: survey before implementing. Appendix F changed the premise the
+extension was planned under — we now read the non-strict dialect ourselves — so
+the question is what routing through `MathML.jl` (v0.1.24) still buys.
+
+Comparing the two element tables: `MathML.jl` reads **two** names we do not.
+`prod` is not a MathML element and raises `KeyError` there anyway, so the real
+delta is **one**: `<diff>`, which is F.2.1 and which `MathML.jl` implements with
+its author's own `# won't work for all cases` against `bvar` and `degree`.
+
+And the bridge needs no code from us. This already works, with nothing but what
+the package ships:
+
+```julia
+to_openmath(only(MathML.parse_str(source)))   # → OMA(OMS(calculus1#diff), …)
+```
+
+because the `Symbolics` extension supplies `to_openmath(::Num)`. An extension
+would add a name and no capability.
+
+The route is also **lossier** than ours. `MathML.jl` reads every untyped `<cn>`
+as a `Float64`, so `<apply><plus/><ci>x</ci><cn>2</cn></apply>` becomes
+`arith1#plus(OMF(2.0), OMV(x))` — the integer and the argument order both gone —
+where Appendix F gives `arith1#plus(OMV(x), OMI(2))`, F.9.1 being explicit that
+an untyped `<cn>` whose lexical form is an integer *is* an integer.
+
+So: no extension. If derivatives matter, the honest successor is **F.2.1 itself**,
+which is now the only reason left to want one.
 
 **Exit criteria** — every corpus item round-trips through Strict Content MathML
 alongside XML and JSON; the non-round-trippable list is exhaustive and each entry

@@ -126,6 +126,18 @@ function OpenMath.to_openmath(x::Symbolics.BasicSymbolic)
     op === sqrt && return _sym("arith1", "root")(
         OpenMath.to_openmath(only(args)), OMInteger(2))
 
+    # `transc1#log` carries the base; `transc1#ln` is the natural logarithm and
+    # carries none. Julia spells the first two ways — `log10(x)` and `log(b, x)`
+    # — and the second as one-argument `log`, which is why `_OPERATORS` cannot
+    # hold either of the first two: they need an argument moved or invented.
+    op === log10 && return _sym("transc1", "log")(
+        OMInteger(10), OpenMath.to_openmath(only(args)))
+    op === log2 && return _sym("transc1", "log")(
+        OMInteger(2), OpenMath.to_openmath(only(args)))
+    if op === log && length(args) == 2
+        return _sym("transc1", "log")(map(OpenMath.to_openmath, args)...)
+    end
+
     # Julia's `-` is unary or binary; OpenMath gives them different symbols.
     if op === (-)
         length(args) == 1 && return _sym("arith1", "unary_minus")(
@@ -188,6 +200,10 @@ function OpenMath.symbolics_phrasebook()
     # distinct operation. Writing it as `a^(1//2)` is the same number and a
     # different expression, and the round trip would stop being exact.
     define!(p, OMSymbol("arith1", "root"), _root)
+    # `log(10, x)` is `log(x)/log(10)` to Symbolics: the same number and a
+    # different expression. `log10` is the one Symbolics keeps whole, so the
+    # round trip is only exact if the common bases are spelled that way.
+    define!(p, OMSymbol("transc1", "log"), _log)
     define!(p, OMSymbol("piece1", "piece"), (value, condition) -> _Piece(value, condition))
     define!(p, OMSymbol("piece1", "otherwise"), value -> _Otherwise(value))
     define!(p, OMSymbol("piece1", "piecewise"), _piecewise)
@@ -235,6 +251,13 @@ function _piecewise(parts...)
 end
 
 _root(a, b) = (b isa Number && b == 2) ? sqrt(a) : a^(1 // b)
+
+function _log(base, x)
+    base isa Number || return log(base, x)
+    base == 10 && return log10(x)
+    base == 2 && return log2(x)
+    return log(base, x)
+end
 
 struct _Lambda
     variables::Vector{Num}

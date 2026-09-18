@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tabulates both halves. Default behaviour is unchanged — `read_mathml` still
   reads the strict subset only.
 - `OpenMath.appendix_f_operators()` exposes the §F.8 element-to-symbol table.
+- Appendix F transforms the **container elements** `<set>`, `<list>`, `<vector>`,
+  `<matrix>` and `<matrixrow>` (F.4). They were in the §F.8 table and reachable
+  only in applicant position, so `<set>1 2</set>` fell through to "unhandled
+  element". `type="multiset"` selects `multiset1#multiset`, and an attribute with
+  no OpenMath counterpart — `<list order="lexicographic">` — is refused rather
+  than dropped.
+- `multiset1#multiset` in the base vocabulary, as a `Vector`: a multiset keeps
+  its repeats, which is the whole difference from `set1#set`.
 - Six symbols the `nums1` and `set1` Content Dictionaries define and the base
   vocabulary lacked: `based_integer`, `based_float`, `bigfloat`, `complex_polar`,
   `gamma` (Euler's constant, not the function) and `emptyset`. Appendix F builds
@@ -31,6 +39,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Symbolics phrasebook raised `MethodError`. Found by the MathML.jl oracle, and
   only by its shared-document path: the hand-written pairs supply the OpenMath
   side themselves, so they asserted a `root(x, 2)` nothing produced.
+- `transc1#log` applied to one argument, the same defect a section later.
+  `<log/>` with no `<logbase>` is base 10 (MathML 4 §4.3) and `transc1#log` takes
+  the base first — the `transc1` CD's own FMP reads `log(a, c) = b` when
+  `a^b = c`.
+- The Symbolics phrasebook read `transc1#log(10, x)` as `log(x)/log(10)`: the
+  same number, a different expression, and enough to stop the round trip being
+  the identity. Base 10 and base 2 now map onto `log10` and `log2`, which
+  Symbolics keeps whole — as `arith1#root(a, 2)` already mapped onto `sqrt` —
+  and `to_openmath` writes all three back.
+- Refusals of real Content MathML — `<logbase>`, `<interval>` — claimed it was
+  "not Content MathML at all". The refusal was right and the reason was false,
+  which is worse than a generic message: it tells a reader to stop looking for a
+  rule that exists. Every refusal now names its Appendix F section.
 
 ### Security
 

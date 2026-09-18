@@ -233,7 +233,8 @@ end
         ("nums1", "complex_polar"), ("nums1", "bigfloat"),
         ("nums1", "pi"), ("nums1", "e"), ("nums1", "i"),
         ("nums1", "NaN"), ("nums1", "infinity"), ("nums1", "gamma"),
-        ("logic1", "true"), ("logic1", "false"), ("set1", "emptyset")])
+        ("logic1", "true"), ("logic1", "false"), ("set1", "emptyset"),
+        ("multiset1", "multiset")])                      # F.4, <set type="multiset">
     @test isempty(setdiff(synthesised, known))
 
     # `fns1#lambda` and the `piece1` symbols are deliberately *not* in the base
@@ -242,4 +243,89 @@ end
     # looking the head up. Named here so the exclusion is a decision.
     @test !(("fns1", "lambda") in known)
     @test all(n -> !(("piece1", n) in known), ("piece", "otherwise", "piecewise"))
+end
+
+@testitem "appendix F: a bare log is base 10 (F.2.6, degenerate)" tags = [:unit, :mathml] begin
+    using OpenMath
+    # `transc1#log` takes the base *and* the argument — the CD's own FMP says
+    # `log(a, c) = b` when `a^b = c`. MathML 4 §4.3 says a `<log/>` with no
+    # `<logbase>` is base 10. So the 10 has to be supplied, exactly as the 2 is
+    # for `<root/>`; emitting a one-argument `transc1#log` was wrong.
+    ns = """ xmlns="http://www.w3.org/1998/Math/MathML\""""
+    read(s) = OpenMath.parse("<math$(ns)>$(s)</math>";
+        format = :mathml, strict = false).object
+
+    @test read("<apply><log/><ci>x</ci></apply>") ==
+          OMS"transc1#log"(OMInteger(10), OMVariable("x"))
+    # `<ln/>` is the natural logarithm and takes one argument, so it is untouched.
+    @test read("<apply><ln/><ci>x</ci></apply>") == OMS"transc1#ln"(OMVariable("x"))
+
+    # An explicit `<logbase>` is the qualifier form of F.2.6 and is refused —
+    # naming that section, rather than claiming <logbase> is not Content MathML.
+    e = try
+        read("<apply><log/><logbase><cn>2</cn></logbase><ci>x</ci></apply>")
+    catch err
+        err
+    end
+    @test e isa OpenMath.OpenMathParseError
+    @test occursin("F.2.6", sprint(showerror, e))
+end
+
+@testitem "appendix F: the container elements (F.4)" tags = [:unit, :mathml] begin
+    using OpenMath
+    # `set`, `list`, `vector`, `matrix` and `matrixrow` were in the §F.8 table
+    # and reachable only in *applicant* position, so `<set><cn>1</cn></set>` —
+    # the way anybody actually writes one — fell through to "unhandled element".
+    # Half-present is worse than either state.
+    ns = """ xmlns="http://www.w3.org/1998/Math/MathML\""""
+    read(s) = OpenMath.parse("<math$(ns)>$(s)</math>";
+        format = :mathml, strict = false).object
+
+    @test read("<set><cn>1</cn><cn>2</cn></set>") ==
+          OMS"set1#set"(OMInteger(1), OMInteger(2))
+    @test read("<list><cn>1</cn></list>") == OMS"list1#list"(OMInteger(1))
+    @test read("<vector><cn>1</cn><cn>2</cn></vector>") ==
+          OMS"linalg2#vector"(OMInteger(1), OMInteger(2))
+    @test read("<matrix><matrixrow><cn>1</cn></matrixrow></matrix>") ==
+          OMS"linalg2#matrix"(OMS"linalg2#matrixrow"(OMInteger(1)))
+    @test read("<set/>") == OMS"set1#set"()
+
+    # `type="multiset"` is a different symbol, not a decoration: a multiset keeps
+    # its repeats. Dropping the attribute would silently change the meaning.
+    @test read("<set type=\"multiset\"><cn>1</cn><cn>1</cn></set>") ==
+          OMS"multiset1#multiset"(OMInteger(1), OMInteger(1))
+
+    # An attribute we have no symbol for is refused rather than dropped. OpenMath
+    # has no ordered-list symbol, so `order` cannot be honoured.
+    @test_throws OpenMath.OpenMathParseError read(
+        "<list order=\"lexicographic\"><cn>1</cn></list>")
+    @test_throws OpenMath.OpenMathParseError read("<set type=\"frobnicate\"/>")
+end
+
+@testitem "appendix F: a refusal names the right reason" tags = [:unit, :mathml] begin
+    using OpenMath
+    # Several Content MathML elements were refused as "not Content MathML at
+    # all". The refusal was right and the reason was false, which is worse than
+    # a generic message: it tells a reader to stop looking for the rule.
+    ns = """ xmlns="http://www.w3.org/1998/Math/MathML\""""
+    why(s) =
+        try
+            OpenMath.parse("<math$(ns)>$(s)</math>"; format = :mathml, strict = false)
+            ""
+        catch err
+            sprint(showerror, err)
+        end
+
+    for (source, section) in (
+        ("<apply><log/><logbase><cn>2</cn></logbase><ci>x</ci></apply>", "F.2.6"),
+        ("<interval><cn>0</cn><cn>1</cn></interval>", "F.4"),
+        ("<apply><int/><ci>f</ci></apply>", "F.2.2"),
+        ("<apply><forall/><ci>p</ci></apply>", "F.5.2"))
+        message = why(source)
+        @test occursin(section, message)
+        @test !occursin("not Content MathML at all", message)
+    end
+
+    # Presentation markup really is not Content MathML, and still says so.
+    @test occursin("not Content MathML at all", why("<mrow><mi>x</mi></mrow>"))
 end

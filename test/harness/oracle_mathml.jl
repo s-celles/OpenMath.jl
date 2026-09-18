@@ -63,6 +63,12 @@ const PAIRS = Any[
         OMS"transc1#exp"(OMVariable("x"))),
     ("ln", "<apply><ln/><ci>x</ci></apply>",
         OMS"transc1#ln"(OMVariable("x"))),
+    # `<log/>` with no `<logbase>` is base 10 — MathML 4 §4.3 — and `transc1#log`
+    # takes the base first. MathML.jl maps the element straight onto `log10`, so
+    # this vector checks our base-10 default against an independent reading of
+    # the same rule rather than against our own.
+    ("log", "<apply><log/><ci>x</ci></apply>",
+        OMS"transc1#log"(OMInteger(10), OMVariable("x"))),
     ("max", "<apply><max/><ci>x</ci><ci>y</ci></apply>",
         OMS"minmax1#max"(OMVariable("x"), OMVariable("y"))),
     ("min", "<apply><min/><ci>x</ci><ci>y</ci></apply>",

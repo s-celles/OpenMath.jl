@@ -244,3 +244,35 @@ end
         OMS"piece1#piece"(OMInteger(1), OMS"logic1#true"))
     @test_throws OpenMath.OpenMathConversionError interpret(p, om)
 end
+
+@testitem "symbolics: a logarithm keeps its base" tags = [:unit, :symbolics] begin
+    using OpenMath, Symbolics
+    @variables x
+    p = OpenMath.symbolics_phrasebook()
+
+    # `transc1#log` takes the base and the argument. Interpreting it with
+    # `Base.log` gives `log(x)/log(10)`, which is the same number and a
+    # different expression — the same trap as writing `arith1#root(a, 2)` as
+    # `a^(1//2)` instead of `sqrt(a)`, and it stops the round trip being exact.
+    # Found by the MathML.jl oracle: MathML.jl reads `<log/>` as `log10`.
+    @test isequal(interpret(p, OMS"transc1#log"(OMInteger(10), OMVariable("x"))),
+        log10(x))
+    @test isequal(interpret(p, OMS"transc1#log"(OMInteger(2), OMVariable("x"))),
+        log2(x))
+    # Base 10 and base 2 are the bases Symbolics keeps whole. Any other base has
+    # no such form, so it stays `log(b, x)` — which Symbolics expands into a
+    # quotient of natural logarithms. That still round-trips, as the loop below
+    # checks; it just comes back as `arith1#divide` rather than `transc1#log`.
+    @test isequal(interpret(p, OMS"transc1#log"(OMInteger(3), OMVariable("x"))),
+        log(3, x))
+    @test isequal(interpret(p, OMS"transc1#ln"(OMVariable("x"))), log(x))
+
+    # And back, which is what "exact" means here.
+    @test to_openmath(log10(x)) == OMS"transc1#log"(OMInteger(10), OMVariable("x"))
+    @test to_openmath(log2(x)) == OMS"transc1#log"(OMInteger(2), OMVariable("x"))
+    @test to_openmath(log(x)) == OMS"transc1#ln"(OMVariable("x"))
+
+    for e in (log10(x), log2(x), log(x), log(3, x))
+        @test isequal(interpret(p, to_openmath(e)), e)
+    end
+end

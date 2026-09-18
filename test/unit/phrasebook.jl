@@ -230,3 +230,12 @@ end
     # set1#emptyset.
     @test isempty(interpret(p, OMS"set1#emptyset"))
 end
+
+@testitem "phrasebook: a multiset keeps its repeats" tags = [:unit, :phrasebook] begin
+    using OpenMath
+    # `<set type="multiset">` becomes `multiset1#multiset`, a different symbol
+    # from `set1#set` precisely because the repeats are the point.
+    p = Phrasebook()
+    @test interpret(p, OMS"set1#set"(OMInteger(1), OMInteger(1))) == Set([1])
+    @test interpret(p, OMS"multiset1#multiset"(OMInteger(1), OMInteger(1))) == [1, 1]
+end

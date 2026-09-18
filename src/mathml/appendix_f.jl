@@ -56,6 +56,24 @@ const _F_OPERATORS = Dict{String, Tuple{String, String}}(
     "list" => ("list1", "list"), "set" => ("set1", "set")
 )
 
+# F.4 "Container markup". These five are *also* operator names — `<set/>` may
+# stand in applicant position — but they are normally written with their members
+# as children, and F.4 rewrites that form into an application of the same
+# symbol. They were in the table above and nowhere else, so the container form
+# fell through to "unhandled element": reachable only the way nobody writes one.
+#
+# The value is the attribute that selects a different symbol, and the symbols it
+# selects. An attribute value not listed is refused rather than dropped, because
+# dropping `type="multiset"` silently turns a multiset into a set.
+const _F_CONTAINERS = Dict{String, Tuple{String, Dict{String, Tuple{String, String}}}}(
+    "set" => ("type", Dict("set" => ("set1", "set"),
+        "multiset" => ("multiset1", "multiset"))),
+    "list" => ("order", Dict{String, Tuple{String, String}}()),
+    "vector" => ("", Dict{String, Tuple{String, String}}()),
+    "matrix" => ("", Dict{String, Tuple{String, String}}()),
+    "matrixrow" => ("", Dict{String, Tuple{String, String}}())
+)
+
 for t in ("sin", "cos", "tan", "sec", "csc", "cot",
     "sinh", "cosh", "tanh", "sech", "csch", "coth")
     _F_OPERATORS[t] = ("transc1", t)
@@ -99,6 +117,8 @@ const _F_UNIMPLEMENTED = Dict{String, String}(
     "condition" => "F.3, rewrite to domainofapplication",
     "domainofapplication" => "F.3, rewrite to domainofapplication",
     "momentabout" => "F.2.7, moments",
+    "logbase" => "F.2.6, logarithms",
+    "interval" => "F.4, container markup",
     "int" => "F.2.2, integrals",
     "diff" => "F.2.1, derivatives",
     "partialdiff" => "F.2.1, derivatives",
@@ -109,6 +129,12 @@ const _F_UNIMPLEMENTED = Dict{String, String}(
 )
 
 _f_symbol(entry::Tuple{String, String}) = OMSymbol(entry[1], entry[2])
+
+# Whether this frame stands where an `<apply>`'s operator goes.
+function _f_is_applicant(f::_MMLFrame)
+    parent = f.parent
+    return parent !== nothing && parent.tag == "apply" && isempty(parent.children)
+end
 
 """
     OpenMath.appendix_f_operators() -> Dict{String,Tuple{String,String}}
@@ -142,8 +168,14 @@ function _f_build(f::_MMLFrame)
     t = f.tag
 
     # F.8 "Rewrite: element". An operator element in applicant position is the
-    # symbol it names; the same element standing alone is that symbol too.
-    if haskey(_F_OPERATORS, t) && isempty(f.children) && isempty(strip(_mml_text(f)))
+    # symbol it names; the same element standing alone is that symbol too — for
+    # an operator. For a *container* it is not: `<set/>` heading an `apply` is
+    # the symbol, and `<set/>` on its own is the empty set. So the container
+    # elements are excluded here unless they are in applicant position, which is
+    # exactly "first child of an `apply`" and is knowable because the parent's
+    # earlier children are already built by the time this runs.
+    if haskey(_F_OPERATORS, t) && isempty(f.children) && isempty(strip(_mml_text(f))) &&
+       (!haskey(_F_CONTAINERS, t) || _f_is_applicant(f))
         return _f_symbol(_F_OPERATORS[t])
     end
     haskey(_F_CONSTANTS, t) && return _f_symbol(_F_CONSTANTS[t])
@@ -158,6 +190,27 @@ function _f_build(f::_MMLFrame)
     end
 
     t == "cn" && return _f_cn(f)
+
+    # F.4 "Container markup" — `<set>1 2</set>` is `set1#set(1, 2)`.
+    if haskey(_F_CONTAINERS, t)
+        attribute, choices = _F_CONTAINERS[t]
+        entry = _F_OPERATORS[t]
+        value = attribute == "" ? nothing : _mml_attribute(f, attribute)
+        if value !== nothing
+            chosen = get(choices, value, nothing)
+            chosen === nothing && _mmlerr(f,
+                "<$(t) $(attribute)=$(repr(value))> has no symbol in Appendix F: " *
+                "OpenMath has nothing that means it, and dropping the attribute " *
+                "would silently change what the element denotes")
+            entry = chosen
+        end
+        kids = OMNode[]
+        for c in f.children
+            c isa OMNode || _mmlerr(f, "<$(t)> may not contain $(typeof(c))")
+            push!(kids, c)
+        end
+        return OMApplication(_f_symbol(entry), kids; id = _mml_attribute(f, "id"))
+    end
 
     # F.4.3 "Lambda expressions" — `<lambda>` is the non-strict spelling of a
     # `<bind>` whose binder is `fns1#lambda`.
@@ -217,6 +270,16 @@ function _f_build(f::_MMLFrame)
         if length(f.children) == 2 && head isa OMSymbol &&
            head.cd == "arith1" && head.name == "root"
             push!(f.children, OMInteger(2))
+        end
+        # F.2.6 "Logarithms", degenerate case. `transc1#log` takes the base and
+        # the argument — the CD's own FMP reads `log(a, c) = b` when `a^b = c` —
+        # and MathML 4 §4.3 makes a `<log/>` without a `<logbase>` base 10. So
+        # the 10 is supplied, for the same reason and with the same safeguard as
+        # the root above: `<logbase>` is unimplemented, so the qualifier form is
+        # refused before this can fire on it.
+        if length(f.children) == 2 && head isa OMSymbol &&
+           head.cd == "transc1" && head.name == "log"
+            insert!(f.children, 2, OMInteger(10))
         end
     end
 

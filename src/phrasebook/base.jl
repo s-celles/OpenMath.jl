@@ -190,6 +190,9 @@ const _BASE_VOCABULARY = Dict{Tuple{String, String}, Any}(
     ("linalg2", "matrix") => _om_matrix,
     ("list1", "list") => (xs...) -> collect(xs),
     ("set1", "set") => (xs...) -> Set(xs),
+    # A multiset keeps its repeats, which a `Set` does not — so it is a `Vector`
+    # here, and the distinction `<set type="multiset">` makes survives.
+    ("multiset1", "multiset") => (xs...) -> collect(xs),
 
     # --- functions on functions ----------------------------------------------
     ("fns1", "identity") => identity,
