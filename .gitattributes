@@ -1,0 +1,17 @@
+# Git must not rewrite the contents of this repository on checkout.
+#
+# The conformance corpus is byte-exact test vectors. An `OMSTR`'s content is
+# significant whitespace, so a fixture whose line endings git translates is a
+# fixture that tests something *different* on Windows — which is not
+# hypothetical: the first Windows CI run decoded `standard/omstr-whitespace` as
+# "  two  spaces\r\n" against an expectation of "  two  spaces\n", and reported
+# every source file as unformatted because JuliaFormatter saw CRLF.
+#
+# So: text files are LF in the repository and LF in the working tree on every
+# platform, and the corpus is exempt from translation altogether.
+
+* text=auto eol=lf
+
+# Byte-exact test data: never translated, never diffed as text.
+test/corpus/** -text
+*.bin -text -diff

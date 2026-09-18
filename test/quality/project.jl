@@ -218,3 +218,40 @@ end
     isempty(unformatted) || println("unformatted: ", join(unformatted, ", "))
     @test isempty(unformatted)
 end
+
+@testitem "the corpus matches its manifest (harness spec §4.2)" tags = [:quality] begin
+    using OpenMath, SHA
+    # The corpus is the verifier's ground truth, so an agent that can edit it can
+    # make any test pass. `MANIFEST.sha256` hashes every item and `just
+    # corpus-check` compares — but nothing ran it: not `just verify`, not CI. It
+    # drifted, and the drift shipped in the first published commit.
+    #
+    # A gate nobody runs is a gate that is green because it is asleep, which is
+    # the third time this project has learned that. So the comparison lives here,
+    # where `just verify` and CI both reach it, and `just corpus-check` remains
+    # for the `--update` path.
+    root = joinpath(pkgdir(OpenMath), "test", "corpus")
+    manifest = Dict{String, String}()
+    for line in eachline(joinpath(root, "MANIFEST.sha256"))
+        parts = split(line, "  ", limit = 2)
+        length(parts) == 2 && (manifest[String(strip(parts[2]))] = String(parts[1]))
+    end
+
+    changed = String[]
+    for (dir, _, files) in walkdir(root), f in files
+
+        f == "MANIFEST.sha256" && continue
+        rel = replace(relpath(joinpath(dir, f), root), '\\' => '/')
+        recorded = get(manifest, rel, nothing)
+        recorded === nothing && continue          # additions are free
+        bytes2hex(sha256(read(joinpath(dir, f)))) == recorded || push!(changed, rel)
+    end
+    missing_items = [k for k in keys(manifest) if !isfile(joinpath(root, k))]
+
+    isempty(changed) ||
+        println("  modified since the manifest: ", join(sort(changed), ", "))
+    isempty(missing_items) ||
+        println("  deleted since the manifest: ", join(sort(missing_items), ", "))
+    @test isempty(changed)
+    @test isempty(missing_items)
+end
