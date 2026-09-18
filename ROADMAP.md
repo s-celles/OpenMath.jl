@@ -571,6 +571,10 @@ project.
       0.121 s, `using OpenMath` 0.147 s — loading cost 26 ms — and the first
       `parse` **4.132 s**. All of it first-call compilation, paid by every
       process. Now **0.32 s**, on all four encodings.
+- [x] **E6** — `just verify-lts` and `just verify-all`. "The single source of
+      truth" covered Julia 1.13 and not the 1.10 LTS that `REQ-PRJ-001` names
+      equally, and the first CI run found three defects that every local run had
+      passed. Julia 1.10 was installed on this machine the whole time.
 - [ ] `SnoopCompile` invalidation audit; `Invalidations.yml` gate.
 - [x] Allocation-per-node benchmark, and the two defects it found in the JSON
       reader. `_scan_string!` allocated an `IOBuffer` for every string including

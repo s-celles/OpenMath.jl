@@ -21,6 +21,25 @@ default:
 verify tier="standard" *ARGS:
     {{julia}} {{tproj}} test/harness/verify.jl --tier {{tier}} {{ARGS}}
 
+# The same, on the oldest supported Julia (REQ-PRJ-001 names 1.10 LTS and 1.13).
+#
+# This exists because it did not, and the first CI run found three defects on
+# 1.10 that every local run had passed: two undeclared test dependencies that a
+# grown manifest hid, and a genuine `MethodError` that JET sees on 1.10 and not
+# on 1.13. "The single source of truth" covered one of the two versions the
+# package promises.
+# Its environment lives under refs/ because Manifest.toml is shared between
+# Julia versions: resolving the test environment on 1.13 pins versions 1.10
+# cannot load, and back again. `just verify-lts-setup` builds it once.
+verify-lts-setup:
+    {{julia}} +1.10 {{tproj}} test/harness/lts_env.jl
+
+verify-lts tier="full" *ARGS:
+    {{julia}} +1.10 --project=refs/lts-test test/harness/verify.jl --tier {{tier}} {{ARGS}}
+
+# Both supported versions, which is what CI actually gates on.
+verify-all: verify-lts (verify "full")
+
 # The same, as JSON, for the agent loop.
 verify-json tier="standard":
     @{{julia}} {{tproj}} test/harness/verify.jl --tier {{tier}} --json

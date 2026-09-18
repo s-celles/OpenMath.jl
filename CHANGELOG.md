@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `read_json` raised a `MethodError` instead of an `OpenMathParseError` for a
+  foreign document object — a call site left behind when the reader's error paths
+  became a linked list. It breaks the one thing REQ-SEC-001 promises, and JET
+  found it on Julia 1.10 after passing on 1.13.
+- `Pkg` and `Random` were used by the test suite and declared by nothing, so a
+  clean checkout failed on every Julia version while a grown local manifest hid
+  it. A quality gate now checks statically that every module a test file `using`s
+  is a declared dependency.
+
 ### Added
 
 - Reading JSON is twice as fast and allocates 41 % less: 38 → 22.3 allocations

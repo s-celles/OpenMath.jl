@@ -100,6 +100,45 @@ end
     @test !isdir(joinpath(root, "refs")) || ignored
 end
 
+@testitem "every module the tests use is a declared dependency" tags = [:quality] begin
+    using OpenMath, TOML
+    # `just verify` runs against a manifest that has accumulated transitive
+    # dependencies, so `using Random` in a test file works locally whether or not
+    # anything declared it — and fails on a clean checkout. That is exactly what
+    # happened: the first CI run on Julia 1.10 failed on `Pkg` and `Random`,
+    # both undeclared, both invisible here.
+    #
+    # This is a *static* check rather than a clean resolve, because it is cheap
+    # enough to run every time and points at the file rather than at a stack.
+    root = pkgdir(OpenMath)
+    declared = Set(keys(TOML.parsefile(joinpath(root, "test", "Project.toml"))["deps"]))
+    push!(declared, "Test", "OpenMath")         # always available under test
+    always = Set(["Base", "Core", "Main"])
+
+    offenders = Tuple{String, String}[]
+    for (dir, _, files) in walkdir(joinpath(root, "test")), f in files
+
+        endswith(f, ".jl") || continue
+        path = joinpath(dir, f)
+        # An opt-in oracle runs under its own environment — `oracle-mathml`, for
+        # one, because MathML.jl pins Symbolics to an exact version and must not
+        # pin ours. Such a file says so in a marker line and is exempt; the
+        # exemption is declared in the file rather than listed here, so adding
+        # one is visible where it applies.
+        occursin("# runs under --project=", read(path, String)) && continue
+        for (i, line) in enumerate(eachline(path))
+            m = match(r"^\s*using\s+([A-Za-z_][A-Za-z0-9_.]*)", line)
+            m === nothing && continue
+            mod = String(first(split(m.captures[1], '.')))
+            (mod in declared || mod in always || startswith(mod, "_")) && continue
+            push!(offenders, (relpath(joinpath(dir, f), root) * ":" * string(i), mod))
+        end
+    end
+    isempty(offenders) ||
+        foreach(o -> println("  ", o[1], "  uses undeclared ", o[2]), offenders)
+    @test isempty(offenders)
+end
+
 @testitem "JET finds no error in our own code" tags = [:quality] begin
     using JET, OpenMath
     reports = JET.get_reports(JET.report_package(OpenMath; toplevel_logger = nothing))

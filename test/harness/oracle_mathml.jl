@@ -19,6 +19,9 @@
 #
 #   just oracle-mathml-setup
 #   just oracle-mathml
+#
+# runs under --project=refs/mathml-env, not the test environment, so its imports
+# are exempt from the declared-dependency gate in test/quality/project.jl.
 
 using OpenMath
 using Symbolics

@@ -96,7 +96,8 @@ function read_json(src::AbstractString; mode::Symbol = :strict)
     # Depth was already bounded by the scanner, so the build below is bounded too.
     node = _build_json(inner, _sub(_JROOT, "object"))
     node isa OMNode ||
-        _jperr("/object", "the document object may not be foreign content")
+        _jperr(_sub(_JROOT, "object"),
+            "the document object may not be foreign content")
 
     return OMObject(node; version = version === nothing ? "2.0" : version,
         cdbase = cdbase, id = id)
