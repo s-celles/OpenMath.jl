@@ -90,9 +90,29 @@ package exports nothing useful and every conformance test is red — by design.
       Object Model, Encodings, Content Dictionaries, Phrasebooks, API, Conformance.
 - [x] The doc build emits `llms.txt` and `llms-full.txt` **into the built site**, not at
       the repository root.
-- [ ] A "Conformance" page generated from the harness's machine-readable report
+- [x] A "Conformance" page generated from the harness's machine-readable report
       (§6.1 `harness/report.jl`), so the published docs always show live coverage of
-      the corpus per encoding.
+      the corpus per encoding. **Done 2026-09-18.**
+
+      `test/harness/report.jl` calls the *same* `Corpus.check` the conformance
+      suite calls, rather than deriving a second verdict — a report that could
+      disagree with the suite would be two opinions, which is none. It emits
+      JSON (`just conformance-report` → gitignored `refs/conformance.json`) and
+      renders `docs/src/conformance.md` from it.
+
+      The page is committed, which means it can go stale, and a stale conformance
+      page is worse than none: it states measured coverage that was not measured.
+      So a gate regenerates and compares, the same shape as the `MANIFEST.sha256`
+      gate — and, unlike that one, it was **proved to fire** before being trusted,
+      by making the page stale on purpose. Doing so found the gate's own
+      diagnostic indexing a `String` at arbitrary integers, so the first stale
+      page was reported as an exception rather than a failure: the page contains
+      `✅` and `—`.
+
+      The report covers the in-repository corpus only. The 342 harvested Content
+      Dictionary vectors live in gitignored `refs/`, so including them would make
+      the published page depend on whether the reader had run `just
+      corpus-fetch`. It reports what a clean checkout can verify, and says so.
 
 ### 0.4 Harness core
 

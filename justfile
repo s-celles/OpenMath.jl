@@ -204,6 +204,16 @@ docs:
 # --- everything ---------------------------------------------------------------
 
 # Quality, tests and docs — what CI runs. Never the opt-in section above.
+# Regenerate the conformance report: the docs page (committed) and the JSON
+# (gitignored). A test asserts the page matches a fresh run.
+conformance-report:
+    {{julia}} {{tproj}} -e 'include("test/harness/report.jl"); \
+        r = Report.build(); \
+        write("docs/src/conformance.md", Report.markdown(r)); \
+        mkpath("refs"); write("refs/conformance.json", Report.json(r)); \
+        println("  docs/src/conformance.md and refs/conformance.json  (", \
+            r["totals"]["passing"], "/", r["totals"]["items"], " items)")'
+
 all: quality test docs
 
 # Remove build artifacts.

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A generated **[Conformance](https://s-celles.github.io/OpenMath.jl/dev/conformance/)**
+  page: coverage per encoding and per corpus group, measured by the conformance
+  driver rather than typed. `test/harness/report.jl` calls the same
+  `Corpus.check` the test suite calls, so the page and the suite cannot disagree;
+  `just conformance-report` regenerates it and writes the machine-readable JSON
+  to `refs/conformance.json`. A gate fails if the committed page has drifted from
+  a fresh run.
+
 - **Non-strict Content MathML**, via `OpenMath.parse(src; format = :mathml,
   strict = false)`. The transformation is **MathML 4 Appendix F**, which defines
   it normatively, so nothing here is guessed: the token, operator, constant and

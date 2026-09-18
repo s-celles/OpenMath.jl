@@ -97,19 +97,11 @@ end
 function decode(::Val{:binary}, src::AbstractString; mode = :strict)
     OpenMath.parse(src; format = :binary, mode = mode)
 end
-# Binary items are held as `String` like every other encoding: a Julia `String`
-# is a byte sequence that happens not to be validated, so the corpus machinery —
-# reading files, comparing for idempotence, hashing the manifest — needs no
-# special case for an encoding that is not text.
-function decode(::Val{:binary}, src::AbstractString; mode = :strict)
-    OpenMath.parse(src; format = :binary, mode = mode)
-end
 decode(e::Symbol, src::AbstractString; mode = :strict) = decode(Val(e), src; mode = mode)
 
 encode(::Val{:xml}, obj::OMObject) = OpenMath.xml(obj)
 encode(::Val{:json}, obj::OMObject) = OpenMath.json(obj)
 encode(::Val{:mathml}, obj::OMObject) = OpenMath.mathml(obj)
-encode(::Val{:binary}, obj::OMObject) = String(OpenMath.binary(obj))
 encode(::Val{:binary}, obj::OMObject) = String(OpenMath.binary(obj))
 encode(e::Symbol, obj::OMObject) = encode(Val(e), obj)
 
