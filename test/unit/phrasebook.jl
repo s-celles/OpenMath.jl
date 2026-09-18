@@ -189,3 +189,44 @@ end
         @test !(s in have)
     end
 end
+
+@testitem "phrasebook: the number and set constructors Appendix F produces" tags = [
+    :unit, :phrasebook] begin
+    using OpenMath
+    # MathML 4 Appendix F rewrites `<cn base="16">ff</cn>`, `<cn type="constant">γ</cn>`
+    # and the `<sep/>` forms into applications of these symbols. They were absent
+    # from the vocabulary, so a document could transform correctly and then be
+    # refused by the phrasebook — a gap the two files could not see in each
+    # other, and that `test/unit/mathml_appendix_f.jl` now gates.
+
+    p = Phrasebook()
+
+    # nums1#based_integer(base, string) — the CD's own signature.
+    @test interpret(p, OMS"nums1#based_integer"(OMInteger(16), OMString("ff"))) == 255
+    @test interpret(p, OMS"nums1#based_integer"(OMInteger(2), OMString("1011"))) == 11
+    @test_throws OpenMath.OpenMathConversionError interpret(p,
+        OMS"nums1#based_integer"(OMInteger(16), OMString("g")))
+
+    # nums1#based_float(base, string). Julia parses no float outside base 10, so
+    # the two halves are parsed as integers and recombined.
+    @test interpret(p, OMS"nums1#based_float"(OMInteger(16), OMString("1.8"))) ≈ 1.5
+    @test interpret(p, OMS"nums1#based_float"(OMInteger(2), OMString("101.01"))) ≈ 5.25
+    @test interpret(p, OMS"nums1#based_float"(OMInteger(10), OMString("12"))) ≈ 12.0
+
+    # nums1#bigfloat(significand, base, exponent) — the three-argument form
+    # Appendix F builds for `<cn type="e-notation">`.
+    @test interpret(p, OMS"nums1#bigfloat"(OMInteger(15), OMInteger(10), OMInteger(-1))) ≈
+          1.5
+    @test interpret(p, OMS"nums1#bigfloat"(OMInteger(3), OMInteger(2), OMInteger(4))) == 48
+
+    # nums1#complex_polar(modulus, argument).
+    @test interpret(p, OMS"nums1#complex_polar"(OMInteger(2), OMFloat(0.0))) ≈ 2.0 + 0im
+    @test interpret(p, OMS"nums1#complex_polar"(OMInteger(1), OMFloat(π / 2))) ≈ im
+
+    # nums1#gamma is the Euler–Mascheroni constant, not the gamma *function*:
+    # `<eulergamma/>` in MathML, `γ` inside a `<cn type="constant">`.
+    @test interpret(p, OMS"nums1#gamma") ≈ 0.5772156649015329
+
+    # set1#emptyset.
+    @test isempty(interpret(p, OMS"set1#emptyset"))
+end

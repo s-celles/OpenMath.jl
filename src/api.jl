@@ -11,6 +11,11 @@ Decode an OpenMath document.
 encoding from the leading bytes. `mode` is `:strict`, `:lenient` or `:recover`;
 see [`read_xml`](@ref).
 
+`strict` applies only to MathML. The default refuses anything outside Strict
+Content MathML; `strict = false` applies the transformation of MathML 4
+Appendix F, which is defined normatively — so it is a rule rather than a guess.
+See [`read_mathml`](@ref).
+
 # Examples
 ```jldoctest
 julia> using OpenMath
@@ -24,13 +29,15 @@ julia> o.object
 OMA(OMS(arith1#plus), OMI(1), OMV(x))
 ```
 """
-function parse(src::AbstractString; format::Symbol = :auto, mode::Symbol = :strict)
+function parse(src::AbstractString; format::Symbol = :auto, mode::Symbol = :strict,
+        strict::Bool = true)
     fmt = format === :auto ? sniff_format(src) : format
-    fmt === :mathml && return read_mathml(src; mode = mode)
+    fmt === :mathml && return read_mathml(src; mode = mode, strict = strict)
     # Both XML encodings start with '<', so sniffing cannot separate them; the
     # document element does. `<math>` is Strict Content MathML, `<OMOBJ>` is the
     # innate XML encoding.
-    fmt === :xml && return _looks_like_mathml(src) ? read_mathml(src; mode = mode) :
+    fmt === :xml && return _looks_like_mathml(src) ?
+           read_mathml(src; mode = mode, strict = strict) :
            read_xml(src; mode = mode)
     fmt === :json && return read_json(src; mode = mode)
     fmt === :binary && return read_binary(src; mode = mode)

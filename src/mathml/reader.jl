@@ -28,10 +28,16 @@ const _MML_TEXT = ("cn", "ci", "cs", "cbytes", "csymbol")
 # Bound to a local, like the XML reader: a mutable struct field can change
 # between the check and the use, so narrowing it in place is something neither a
 # reader nor a static analyser should assume.
+# `take!` empties the buffer, so this can only be called once per frame. The
+# Appendix F transformation looks at a `<cn>`'s content *before* the strict
+# builder does, and reading it twice used to hand the second caller an empty
+# string — so the text is taken once and written back.
 function _mml_text(f::_MMLFrame)
     buf = f.text
     buf === nothing && return ""
-    return String(take!(buf))
+    text = String(take!(buf))
+    write(buf, text)
+    return text
 end
 
 function _mml_path(f::_MMLFrame)
@@ -64,7 +70,7 @@ Constructs outside the strict subset are rejected rather than interpreted: the
 normative correspondence is with *Strict* Content MathML, and the full language
 has constructs with no OpenMath counterpart.
 """
-function read_mathml(src::AbstractString; mode::Symbol = :strict)
+function read_mathml(src::AbstractString; mode::Symbol = :strict, strict::Bool = true)
     mode in (:strict, :lenient, :recover) ||
         throw(ArgumentError("mode must be :strict, :lenient or :recover, got $(repr(mode))"))
 
@@ -84,11 +90,24 @@ function read_mathml(src::AbstractString; mode::Symbol = :strict)
         elseif ev isa XMLStartElement
             tag = localname(ev.name)
             parent = isempty(stack) ? nothing : stack[end]
-            tag in _MML_ELEMENTS || throw(OpenMathParseError(
+            known = tag in _MML_ELEMENTS ||
+                    (!strict && tag in _F_EXTRA_ELEMENTS)
+            known || throw(OpenMathParseError(
+                strict ?
                 "<$(ev.name)> is not Strict Content MathML; the strict subset has " *
-                "no operator elements or presentation markup (MathML 4 §4.1.3)";
+                "no operator elements or presentation markup (MathML 4 §4.1.3). " *
+                "Pass `strict = false` to apply the Appendix F transformation" :
+                "<$(ev.name)> is not Content MathML at all; Appendix F transforms " *
+                "the content language, not presentation markup";
                 offset = ev.offset,
                 path = (parent === nothing ? "" : _mml_path(parent)) * "/" * tag))
+            if !strict && haskey(_F_UNIMPLEMENTED, tag)
+                throw(OpenMathParseError(
+                    "<$(ev.name)> needs MathML 4 Appendix $(_F_UNIMPLEMENTED[tag]), " *
+                    "which this package does not implement; see " *
+                    "docs/src/design/mathml-appendix-f.md"; offset = ev.offset,
+                    path = (parent === nothing ? "" : _mml_path(parent)) * "/" * tag))
+            end
 
             check_limit(:max_depth, length(stack) + 1, maxdepth)
             frame = _MMLFrame(tag, ev.attributes, ev.offset, parent,
@@ -104,8 +123,9 @@ function read_mathml(src::AbstractString; mode::Symbol = :strict)
             end
 
             if ev.selfclosed
-                node = _mml_build(frame)
-                isempty(stack) ? (result = node) : push!(parent.children, node)
+                node = _mml_build(frame, strict)
+                node === nothing ||
+                    (isempty(stack) ? (result = node) : push!(parent.children, node))
             else
                 push!(stack, frame)
             end
@@ -114,8 +134,9 @@ function read_mathml(src::AbstractString; mode::Symbol = :strict)
             isempty(stack) && throw(OpenMathParseError(
                 "end tag </$(ev.name)> without a matching start tag"; offset = ev.offset))
             frame = pop!(stack)
-            node = _mml_build(frame)
-            isempty(stack) ? (result = node) : push!(stack[end].children, node)
+            node = _mml_build(frame, strict)
+            node === nothing ||
+                (isempty(stack) ? (result = node) : push!(stack[end].children, node))
 
         elseif ev isa XMLCharacters
             if isempty(stack)
@@ -141,8 +162,9 @@ end
 # is the MathML spelling of an OMATTR key/value pair.
 _is_foreign(f::_MMLFrame) = _mml_attribute(f, "cd") === nothing
 
-function _mml_build(f::_MMLFrame)
+function _mml_build(f::_MMLFrame, strict::Bool = true)
     t = f.tag
+    strict || (node = _f_build(f); node === _F_HANDLED || return node)
     t == "cn" && return _mml_cn(f)
     t == "ci" && return OMVariable(_mml_name(f, _mml_text(f), "variable name");
         id = _mml_attribute(f, "id"))

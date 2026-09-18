@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Non-strict Content MathML**, via `OpenMath.parse(src; format = :mathml,
+  strict = false)`. The transformation is **MathML 4 Appendix F**, which defines
+  it normatively, so nothing here is guessed: the token, operator, constant and
+  container rules (F.4.3, F.4.4, F.7.1, F.8, F.8.1, F.9.1) are implemented, and
+  the qualifier machinery (F.2, F.3, F.5, F.6) is refused with the section that
+  governs it rather than approximated. `docs/src/design/mathml-appendix-f.md`
+  tabulates both halves. Default behaviour is unchanged — `read_mathml` still
+  reads the strict subset only.
+- `OpenMath.appendix_f_operators()` exposes the §F.8 element-to-symbol table.
+- Six symbols the `nums1` and `set1` Content Dictionaries define and the base
+  vocabulary lacked: `based_integer`, `based_float`, `bigfloat`, `complex_polar`,
+  `gamma` (Euler's constant, not the function) and `emptyset`. Appendix F builds
+  applications of all six out of `<cn>`, so a document could transform correctly
+  and then be refused by the phrasebook.
+
+### Fixed
+
+- `arith1#root` applied to one argument. `<root/>` with no `<degree>` qualifier
+  is the square root, and the missing `2` was not being supplied — so the
+  Symbolics phrasebook raised `MethodError`. Found by the MathML.jl oracle, and
+  only by its shared-document path: the hand-written pairs supply the OpenMath
+  side themselves, so they asserted a `root(x, 2)` nothing produced.
+
 ### Security
 
 - The gate enforcing that parsed content never reaches `eval` walked `src/` and

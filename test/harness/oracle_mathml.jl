@@ -17,6 +17,12 @@
 # The pairs are written by hand. Neither implementation generates the other's
 # input, which is what makes agreement worth anything.
 #
+# Since Appendix F landed there is a second, stronger comparison available: feed
+# the *same* non-strict document to both. MathML.jl reads it directly; we
+# transform it with Appendix F, decode it as OpenMath and interpret it with the
+# Symbolics phrasebook. Two independent routes from one input to one language,
+# which is as close to a real oracle as this pairing gets.
+#
 #   just oracle-mathml-setup
 #   just oracle-mathml
 #
@@ -116,7 +122,39 @@ function main(argv)
         end
     end
 
-    println("  ", agreed, "/", length(PAIRS), " agree")
+    # --- the same input through both, via Appendix F --------------------------
+    shared_agreed = 0
+    for (name, mml, _) in PAIRS
+        doc = wrap(mml)
+        theirs = try
+            only(MathML.parse_str(doc))
+        catch err
+            push!(findings,
+                Disagreement(name * " (shared)",
+                    "MathML.jl could not read it: " * first(sprint(showerror, err), 80)))
+            continue
+        end
+        ours = try
+            om = OpenMath.parse(doc; format = :mathml, strict = false)
+            interpret(p, om.object)
+        catch err
+            push!(findings,
+                Disagreement(name * " (shared)",
+                    "Appendix F or the phrasebook refused it: " *
+                    first(sprint(showerror, err), 100)))
+            continue
+        end
+        if isequal(Symbolics.unwrap(theirs), Symbolics.unwrap(ours))
+            shared_agreed += 1
+        else
+            push!(findings, Disagreement(name * " (shared)",
+                "MathML.jl gives $(theirs), we give $(ours)"))
+        end
+    end
+
+    println("  hand-written pairs          ", agreed, "/", length(PAIRS), " agree")
+    println("  the same document, via F    ", shared_agreed, "/", length(PAIRS),
+        " agree")
     for f in findings
         println("    ✗ ", rpad(f.name, 10), f.detail)
     end

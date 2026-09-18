@@ -63,6 +63,40 @@ end
 
 _om_sdev(xs...) = sqrt(_om_variance(xs...))
 
+# The `nums1` constructors MathML 4 Appendix F builds out of `<cn>`: a base
+# attribute, a `type="constant"`, or a `<sep/>`. They take their arguments in
+# the order the Content Dictionary gives, which is not always the order the
+# MathML attribute suggests.
+
+function _om_based_integer(base, text)
+    v = tryparse(BigInt, String(text); base = Int(base))
+    v === nothing && throw(OpenMathConversionError(OMApplication,
+        "nums1#based_integer: $(repr(String(text))) is not a base-$(base) integer"))
+    return v
+end
+
+# Julia parses no float outside base 10, so the two halves are parsed as
+# integers and recombined. `BigFloat` rather than `Float64` because a base-3
+# fraction has no exact binary form and the CD places no bound on the length.
+function _om_based_float(base, text)
+    b = Int(base)
+    s = String(text)
+    point = findfirst('.', s)
+    point === nothing && return BigFloat(_om_based_integer(b, s))
+    whole = s[1:(point - 1)]
+    frac = s[(point + 1):end]
+    lead = isempty(whole) ? BigInt(0) : _om_based_integer(b, whole)
+    isempty(frac) && return BigFloat(lead)
+    return BigFloat(lead) +
+           BigFloat(_om_based_integer(b, frac)) / BigFloat(b)^length(frac)
+end
+
+# "bigfloat(significand, base, exponent)" — the three-argument form, which is
+# why Appendix F inserts the 10 that `<cn type="e-notation">` leaves implicit.
+_om_bigfloat(significand, base, exponent) = significand * BigFloat(base)^exponent
+
+_om_complex_polar(modulus, argument) = modulus * cis(argument)
+
 # (cd, name) => the Julia value or function it denotes, all under the official
 # cdbase. A nullary entry is a constant; anything else is applied to the
 # interpreted arguments.
@@ -75,6 +109,10 @@ const _BASE_VOCABULARY = Dict{Tuple{String, String}, Any}(
     ("nums1", "infinity") => () -> Inf,
     ("nums1", "NaN") => () -> NaN,
     ("nums1", "i") => () -> im,
+    # Euler's constant γ, which is what the `nums1` CD calls `gamma` — not the
+    # gamma *function*. MathML writes it `<eulergamma/>`.
+    ("nums1", "gamma") => () -> MathConstants.eulergamma,
+    ("set1", "emptyset") => () -> Set(),
 
     # --- arithmetic -----------------------------------------------------------
     ("arith1", "plus") => +,
@@ -93,6 +131,10 @@ const _BASE_VOCABULARY = Dict{Tuple{String, String}, Any}(
     # --- numbers --------------------------------------------------------------
     ("nums1", "rational") => _om_rational,
     ("nums1", "complex_cartesian") => complex,
+    ("nums1", "complex_polar") => _om_complex_polar,
+    ("nums1", "based_integer") => _om_based_integer,
+    ("nums1", "based_float") => _om_based_float,
+    ("nums1", "bigfloat") => _om_bigfloat,
     ("integer1", "factorial") => factorial,
     ("integer1", "quotient") => div,
     ("integer1", "remainder") => rem,

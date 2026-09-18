@@ -111,16 +111,32 @@ reading this package follows is argued in [Decision D7](design/binary-backend.md
 
 The normative correspondence is with *Strict* Content MathML — the subset of
 MathML 4 §4.1.3 that maps onto OpenMath element for element. The full Content
-MathML language has constructs with no OpenMath counterpart, and guessing at them
-is the usual way this bridge goes wrong, so non-strict input is refused:
+MathML language has constructs with no OpenMath counterpart, so non-strict input
+is refused by default:
 
 ```jldoctest
 julia> using OpenMath
 
 julia> OpenMath.parse("""<math xmlns="http://www.w3.org/1998/Math/MathML">
                            <apply><plus/><cn>1</cn></apply></math>""")
-ERROR: OpenMathParseError: <plus> is not Strict Content MathML; the strict subset has no operator elements or presentation markup (MathML 4 §4.1.3) at byte 58 at /math/apply/plus
+ERROR: OpenMathParseError: <plus> is not Strict Content MathML; the strict subset has no operator elements or presentation markup (MathML 4 §4.1.3). Pass `strict = false` to apply the Appendix F transformation at byte 58 at /math/apply/plus
 ```
 
-Reading the *non-strict* dialect is what [MathML.jl](https://github.com/SciML/MathML.jl)
-does, and the two packages are complementary rather than alternatives.
+`strict = false` reads it, following **MathML 4 Appendix F**, which specifies the
+non-strict → strict transformation normatively — so nothing is guessed, and what
+Appendix F asks for beyond what is implemented is refused naming the section:
+
+```jldoctest
+julia> using OpenMath
+
+julia> OpenMath.parse("""<math xmlns="http://www.w3.org/1998/Math/MathML">
+                           <apply><plus/><cn>1</cn></apply></math>"""; strict = false)
+OMOBJ(OMA(OMS(arith1#plus), OMI(1)))
+```
+
+See [Non-strict Content MathML](design/mathml-appendix-f.md) for the table of
+what is transformed and what is refused.
+
+Reading the non-strict dialect is also what [MathML.jl](https://github.com/SciML/MathML.jl)
+does, into `Symbolics` expressions rather than OpenMath; it is this package's
+differential oracle for the transformation above.

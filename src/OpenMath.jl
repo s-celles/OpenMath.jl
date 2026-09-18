@@ -46,6 +46,8 @@ include("json/reader.jl")
 include("json/writer.jl")
 include("mathml/writer.jl")
 include("mathml/reader.jl")
+# After the reader: Appendix F dispatches on its frame type.
+include("mathml/appendix_f.jl")
 include("binary/tokens.jl")
 include("binary/writer.jl")
 include("binary/reader.jl")

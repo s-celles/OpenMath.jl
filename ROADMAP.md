@@ -495,7 +495,7 @@ corpus item covers it the day it lands, exactly as happened when JSON arrived.
 - [x] Reject non-strict Content MathML rather than guess (REQ-MML-004): operator
       elements, untyped `<cn>`, non-strict `cn` types and presentation markup are
       all refused with a message naming why.
-- [ ] Normalise non-strict Content MathML into the strict subset, following
+- [x] Normalise non-strict Content MathML into the strict subset, following
       **MathML 4 Appendix F**, which defines the transformation normatively. An
       earlier draft delegated this to `MathML.jl`; checking that package showed it
       contains no `csymbol`, `semantics`, `cbytes` or `cerror` and targets
@@ -515,6 +515,24 @@ corpus item covers it the day it lands, exactly as happened when JSON arrived.
 **Status 2026-09-17** — done, apart from the `MathML.jl` normalisation extension.
 Enabling it in the conformance driver took the suite from 6070 assertions to 6462
 with no new corpus files, the second time §6.2's derivation promise has paid off.
+
+**Status 2026-09-18** — Appendix F lands as `src/mathml/appendix_f.jl`, reached by
+`strict = false`. The token, operator, constant and container rules (F.4.3, F.4.4,
+F.7.1, F.8, F.8.1, F.9.1) are implemented; the qualifier and `domainofapplication`
+machinery (F.2, F.3, F.5, F.6) is refused **naming its section**, because a
+qualifier changes the meaning of the operator it qualifies and a wrong integral is
+silent. `docs/src/design/mathml-appendix-f.md` is the table of both halves.
+
+Two things were found rather than written. The oracle was upgraded so the *same
+non-strict document* goes to both implementations — MathML.jl directly, and
+Appendix F → OpenMath → Symbolics for us — and that path immediately caught
+`<root/>` with no `<degree>` producing a one-argument `arith1#root`. The 21
+hand-written pairs did **not** catch it, because writing the pair by hand means
+supplying the answer the transformation was failing to produce. A differential
+check is only as strong as the input both sides are made to share, which is E3 and
+E7 in a third place. And the new gate asserting that every symbol this
+transformation can emit is one `base_vocabulary` knows failed on six: a document
+could transform perfectly and then be refused by the phrasebook.
 
 **Exit criteria** — every corpus item round-trips through Strict Content MathML
 alongside XML and JSON; the non-round-trippable list is exhaustive and each entry
