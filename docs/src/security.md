@@ -38,11 +38,28 @@ julia> with_limits(OMLimits(; max_depth = 2)) do
 ERROR: OpenMathLimitError: max_depth exceeded (3 > 2); raise it with `with_limits`
 ```
 
-## Names are never interned
+## Names are never interned by a parser
 
 Julia never garbage-collects interned `Symbol`s. Turning attacker-controlled
 names from a parsed document into symbols would be an unbounded memory leak, so
 [`OMVariable`](@ref) and [`OMSymbol`](@ref) hold `String`s.
+
+`from_openmath` is the exception, and it is deliberate: `Symbol` is the right
+Julia value for a variable, and the conversion is something a caller asks for
+rather than something a document triggers. A service that decodes untrusted
+OpenMath and converts it will intern every distinct name it receives, so if that
+is the shape, say what a variable becomes:
+
+```jldoctest
+julia> using OpenMath
+
+julia> safe = Phrasebook();
+
+julia> define_variable!(safe, identity);
+
+julia> interpret(safe, OMVariable("untrusted_name"))
+"untrusted_name"
+```
 
 ## Parsed content is never evaluated
 
@@ -69,3 +86,31 @@ document parses. `test/unit/cross_encoding.jl` asserts the property over all fou
 encodings at once, which is where it should have been all along: the conformance
 driver checks that the encodings agree about *objects*, and both readers agreed
 about objects right up to the point where one of them stopped producing any.
+
+## The review, and what it found
+
+`SECURITY.md` names four classes of vulnerability. This is the pass that checked
+each against the code and a test, rather than against the intention.
+
+| Claim | Where it holds | What proves it |
+|:--|:--|:--|
+| No `StackOverflowError` | every traversal is an explicit stack | `cross_encoding.jl`, all four encodings at 40 000 levels |
+| No unbounded allocation | every length field is checked against `max_bytes` before it is acted on | `invalid/binary-huge-length`, `test/unit/binary_reader.jl` |
+| No hang, nothing outside `OpenMathError` | — | P4b, P8, `just fuzz` at ~2 000 000 inputs |
+| Parsed content never reaches `eval` | — | a quality gate over `src/` **and `ext/`** |
+| No DTD or external entity | the tokenizer refuses `<!DOCTYPE` and `<!ENTITY` | `invalid/doctype`, `invalid/entity-declaration`, `invalid/undeclared-entity` |
+| Names never interned | by a **parser**; `from_openmath` is the documented exception | the test above |
+
+Two of those rows were wrong when the review started.
+
+**The no-`eval` gate walked `src/` only.** The `Symbolics` extension is the one
+place in this package that turns an OpenMath symbol into a call, and it sat
+outside the gate. It was clean, and it was clean unwatched.
+
+**"Names are never interned" was stated without its exception.** Decoding interns
+nothing, which is what the object model is for; `from_openmath` interns, which is
+the natural thing for a caller to invoke next. The claim now says *by a parser*,
+and the exception has a remedy, a test and a paragraph in `SECURITY.md`.
+
+The pattern is E7's, for the third time in a day: a statement was true of the
+intention and not of the reachable code.

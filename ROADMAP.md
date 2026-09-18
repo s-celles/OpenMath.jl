@@ -602,8 +602,15 @@ project.
       conformance driver checks the encodings *agree about objects*, never that
       they share *implementation* properties, and both readers produce the same
       object right up to where one stops producing anything.
-- [ ] Security review pass against `SECURITY.md`'s threat model; document the default
-      limits and how to tune them.
+- [x] Security review pass against `SECURITY.md`'s threat model. Each of the four
+      claims checked against the code *and* a test rather than against the
+      intention; the table is in `docs/src/security.md`. Two were wrong: the
+      no-`eval` gate walked `src/` and not `ext/`, so the one place in this
+      package that turns an OpenMath symbol into a call sat outside it; and
+      "names are never interned" omitted its exception — decoding interns
+      nothing, `from_openmath` interns, and a service that does both will intern
+      every distinct name it is sent. The claim now says *by a parser*, and the
+      exception has a remedy, a test and a paragraph in `SECURITY.md`.
 
 **Exit criteria** — no performance regression ≥ 10 % vs. the Phase 4 baseline; TTFX
 under budget on 1.10 and 1.13; 24 h fuzz clean.

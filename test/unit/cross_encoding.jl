@@ -116,3 +116,32 @@ end
               "$(name): $(once == write(read(once)) ? "stable" : "changed")"
     end
 end
+
+@testitem "security: parsing interns nothing; conversion does (REQ-SEC-001)" tags = [
+    :unit] begin
+    using OpenMath
+    # SECURITY.md lists "unbounded interning of attacker-controlled names" as a
+    # vulnerability, and the object model honours that: every name is a `String`,
+    # because Julia never garbage-collects an interned `Symbol`.
+    #
+    # `from_openmath` is where that stops being true, and it is worth a test
+    # rather than a sentence. It is not a parser entry point — a caller invokes it
+    # deliberately — but a service that parses untrusted OpenMath and converts it
+    # is the obvious thing to write, and it interns every distinct variable name
+    # it is sent.
+    name = "attacker_controlled_" * string(hash(time_ns()); base = 16)
+    doc = """{"kind":"OMOBJ","object":{"kind":"OMV","name":"$(name)"}}"""
+
+    parsed = OpenMath.parse(doc; format = :json).object
+    @test parsed isa OMVariable
+    @test parsed.name isa String                 # parsing alone interns nothing
+
+    @test from_openmath(parsed) isa Symbol       # conversion does
+
+    # And the remedy is one line, which is the reason `define_variable!` exists
+    # and the reason this is a caveat rather than a defect.
+    safe = Phrasebook()
+    define_variable!(safe, identity)
+    @test interpret(safe, parsed) === parsed.name
+    @test interpret(safe, parsed) isa String
+end

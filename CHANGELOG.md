@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- The gate enforcing that parsed content never reaches `eval` walked `src/` and
+  not `ext/`. The `Symbolics` extension is the one place in this package that
+  turns an OpenMath symbol into a call, and it sat outside the gate. It was
+  clean; it was clean unwatched.
+- `SECURITY.md` said "names are `String`, never `Symbol`" without its exception.
+  Decoding a document interns nothing, which is what the object model is for, but
+  `from_openmath` interns — and a service that decodes untrusted OpenMath and
+  converts it will intern every distinct variable name it is sent, unreclaimably.
+  The claim now says *by a parser*; the exception has a remedy
+  (`define_variable!(p, identity)`), a test, and a paragraph of its own.
+- `.gitattributes` exempts `test/corpus/` from line-ending translation. The
+  corpus is byte-exact test vectors and an `OMSTR`'s content is significant
+  whitespace, so a fixture git rewrites tests something different — which is what
+  the first Windows CI run decoded.
+
 ### Fixed
 
 - `read_json` raised a `MethodError` instead of an `OpenMathParseError` for a

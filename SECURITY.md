@@ -29,8 +29,9 @@ as accepting hostile input.** The following are considered vulnerabilities:
   `Meta.parse`. Parsed OpenMath is data; it is never code. This is enforced by a
   quality gate (`just quality`).
 - Resolution of an XML DTD or external entity.
-- Unbounded interning of attacker-controlled names. Names are `String`, never
-  `Symbol`, because Julia never garbage-collects interned symbols.
+- Unbounded interning of attacker-controlled names **by a parser**. Every name in
+  the object model is a `String`, never a `Symbol`, because Julia never
+  garbage-collects an interned symbol. Decoding a document interns nothing.
 
 The following are **not** vulnerabilities:
 
@@ -44,3 +45,21 @@ The following are **not** vulnerabilities:
 
 - A semantically meaningless but well-formed OpenMath object. This package
   transports mathematics; it does not evaluate or trust it.
+
+- **`from_openmath` interning a variable name.** It is a conversion the caller
+  invokes deliberately, not a parser entry point, and `Symbol` is the right Julia
+  value for a variable in ordinary use. But a service that decodes untrusted
+  OpenMath *and then converts it* will intern every distinct name it is sent, and
+  that memory is never reclaimed.
+
+  If that is your shape, say what a variable becomes:
+
+  ```julia
+  safe = Phrasebook()
+  define_variable!(safe, identity)          # names stay String
+  interpret(safe, OpenMath.parse(untrusted).object)
+  ```
+
+  This is a caveat rather than a defect because the remedy is one line and the
+  default is the useful one — but it is written here rather than left implied,
+  because the paragraph above could be read as promising more than it does.

@@ -63,18 +63,24 @@ end
 
 @testitem "parsed content is never evaluated (REQ-SEC-005)" tags = [:quality] begin
     using OpenMath
-    root = joinpath(pkgdir(OpenMath), "src")
+    # `src` *and* `ext`. The gate walked `src` alone, so the Symbolics extension —
+    # which is the one place in this package that turns an OpenMath symbol into a
+    # call — was outside it. It is clean, and it was clean unwatched, which is the
+    # same shape as E3 and E7: a check green on what it could not reach.
+    roots = [joinpath(pkgdir(OpenMath), d) for d in ("src", "ext")]
     banned = ("eval(", "include_string", "Meta.parse", "@eval")
     offenders = String[]
-    for (dir, _, files) in walkdir(root), f in files
-
+    for root in roots, (dir, _, files) in walkdir(root), f in files
         endswith(f, ".jl") || continue
-        src = read(joinpath(dir, f), String)
+        source = read(joinpath(dir, f), String)
         for b in banned
-            occursin(b, src) && push!(offenders, "$(relpath(joinpath(dir, f), root)): $b")
+            occursin(b, source) &&
+                push!(offenders, "$(relpath(joinpath(dir, f), pkgdir(OpenMath))): $b")
         end
     end
+    isempty(offenders) || foreach(println, offenders)
     @test isempty(offenders)
+    @test length(roots) == 2 && all(isdir, roots)
 end
 
 @testitem "no third-party reference source is tracked (REQ-PRJ-003, REQ-PRJ-011)" tags = [:quality] begin
