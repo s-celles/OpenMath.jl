@@ -245,6 +245,52 @@ julia> expand_references(cyclic)
 ERROR: OpenMathReferenceError: reference cycle: an OpenMath element may not dominate itself (#a)
 ```
 
+[`share_structure`](@ref) is the inverse: it finds repeated subtrees, keeps the
+first occurrence, and replaces the rest by references to it.
+
+```jldoctest
+julia> using OpenMath
+
+julia> sub = OMS"arith1#plus"(OMVariable("x"), OMInteger(1));
+
+julia> shared = share_structure(OMS"arith1#times"(sub, sub, sub));
+
+julia> count(n -> n isa OMReference, collect_nodes(shared))
+2
+
+julia> expand_references(shared) == OMS"arith1#times"(sub, sub, sub)
+true
+```
+
+The pair is meaning-preserving in the only sense that counts: expanding a shared
+object gives back what expanding the original gives. That is asserted on
+generated objects, not just on examples.
+
+**The first occurrence is what becomes the definition**, which is what keeps a
+reference from ever preceding its target. That is not tidiness — the binary
+encoding forbids forward references outright (§3.2.5), so a pass that produced
+one would build objects this package could not write.
+
+Two things it will not do. A leaf is never shared, because a reference costs more
+than the leaf in every encoding the standard defines; `min_nodes` lowers the
+threshold for a caller who knows otherwise. And an `id` that an existing `OMR`
+names is never taken away: where one occurrence of a repeated subtree carries
+such an id, the definition adopts it, and where two occurrences carry *different*
+live anchors the subtree is left alone entirely, because only one could survive
+and the other reference would dangle.
+
+What it buys, on an expression holding the same subterm four times:
+
+| Encoding | Expanded | Shared | |
+|:--|--:|--:|--:|
+| XML | 707 B | 399 B | 44 % smaller |
+| JSON | 1315 B | 675 B | 49 % smaller |
+| binary | 207 B | 98 B | 53 % smaller |
+
+Sharing is never applied for you. It changes the bytes an object is written as,
+and a writer that silently rewrote its input would be the wrong default —
+[`canonicalize`](@ref) expands references rather than introducing them.
+
 ## Canonical form
 
 [`canonicalize`](@ref) is the normal form used for comparison: references
@@ -664,6 +710,7 @@ resolve_cdbase
 minimize_cdbase
 collapse_attributions
 expand_references
+share_structure
 strip_ids
 canonicalize
 ```
