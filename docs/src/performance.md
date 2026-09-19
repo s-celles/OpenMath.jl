@@ -133,3 +133,37 @@ parses with collection counted:
 −11.4 % wall time, not +2 %. The allocation column of
 `test/harness/baseline.toml` is what makes such a change visible; the time
 column cannot, and reading only the time column would have led to reverting it.
+
+## The performance budget
+
+Two halves, because the two numbers fail differently.
+
+| | measured by | on a regression |
+|:--|:--|:--|
+| **allocation counts** | `test/quality/performance.jl`, in `just verify` and CI | **fails** |
+| **wall time** | `.github/workflows/Benchmark.yml`, AirspeedVelocity, on each pull request | comments |
+
+**Allocations gate.** An allocation count is deterministic within a Julia
+version, so a rise is a fact rather than a mood. The budget is ±10 % against
+`test/harness/baseline.toml` — loose for a deterministic number, and meant to
+be: it catches a change of *shape*, such as a copy reintroduced or a closure
+built per node, not the noise of a dictionary resizing a bucket differently. It
+skips loudly when the running Julia's minor version differs from the one the
+baseline was recorded on, because comparing counts across versions fires for the
+wrong reason, and a gate that fires for the wrong reason gets switched off.
+
+Raising the ceiling is `just bench --save` in the same commit as whatever caused
+the rise, which makes it a reviewable edit rather than a silent drift.
+
+**Time reports.** Wall time on a shared runner varies by roughly a factor of two
+between runs. A blocking comparison would produce false failures, and a check
+that cries wolf is a check somebody turns off, so the pull-request comment
+states the comparison and leaves the judgement to a reader who can see the
+change. Both sides measure the same workload — `benchmark/workload.jl` is
+included by the harness *and* by `benchmark/benchmarks.jl`, because two
+definitions of "the document we measure" would drift and then the two numbers
+would not be about the same thing.
+
+This split is not a preference. It is what the interning measurement above
+demonstrated: the deterministic number showed the improvement plainly, and the
+timing statistic reported the opposite.

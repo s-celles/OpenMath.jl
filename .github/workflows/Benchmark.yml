@@ -1,0 +1,77 @@
+name: Benchmark
+
+# Runs the suite in `benchmark/benchmarks.jl` on a pull request and on its base,
+# and posts the comparison as a comment.
+#
+# It **reports**; it does not gate. Wall time on a shared runner varies by
+# roughly a factor of two between runs, so a blocking time comparison would
+# generate false failures rather than catch real regressions — and a check that
+# cries wolf is a check somebody turns off.
+#
+# The blocking half of the budget is on allocation *counts*, which are
+# deterministic within a Julia version. It lives in `test/quality/performance.jl`,
+# so `just verify` and the ordinary CI run both reach it rather than it needing a
+# workflow of its own. `docs/src/performance.md` states both halves.
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "benchmark/**"
+      - "Project.toml"
+      - ".github/workflows/Benchmark.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - uses: julia-actions/cache@v2
+
+      - name: Install AirspeedVelocity
+        run: |
+          julia -e 'using Pkg; Pkg.activate(; temp=true); Pkg.add("AirspeedVelocity"); Pkg.build("AirspeedVelocity")'
+          echo "$HOME/.julia/bin" >> "$GITHUB_PATH"
+
+      - name: Compare this branch against the base
+        run: |
+          benchpkg OpenMath \
+            --rev="${{ github.event.pull_request.base.sha }},dirty" \
+            --url="${{ github.server_url }}/${{ github.repository }}" \
+            --bench-on="dirty" \
+            --output-dir=results \
+            --exeflags="--threads=1"
+          benchpkgtable OpenMath \
+            --rev="${{ github.event.pull_request.base.sha }},dirty" \
+            --input-dir=results \
+            > table.md
+
+      - name: Comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### Benchmark — this branch against \`${{ github.event.pull_request.base.ref }}\`"
+            echo
+            cat table.md
+            echo
+            echo "_Reported, not gated: wall time on a shared runner varies by"
+            echo "roughly a factor of two between runs. The blocking budget is on"
+            echo "allocation counts, checked by \`just verify\`; see"
+            echo "\`docs/src/performance.md\`._"
+          } > comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md

@@ -227,7 +227,7 @@ coverage ≥ 90 % on `src/`.
       `XML.jl` 2.45 ms to a generic tree, we take 13.9 ms to a validated object.
       Recorded in `docs/src/design/xml-backend.md`, including that it goes against
       us.
-- [ ] A standing benchmark suite in CI (AirspeedVelocity), as opposed to the
+- [x] A standing benchmark suite in CI (AirspeedVelocity), as opposed to the
       one-off measurement above.
 
 **Exit criteria** — 100 % of non-skipped corpus items round-trip through XML; oracle
@@ -785,7 +785,28 @@ project.
       allocation win by construction**: it showed +2 % time. Over 200 consecutive
       parses, GC included, the same change is −11.4 % wall time and −17.6 % bytes.
       The baseline's allocation column is what shows this; its time column cannot.
-- [ ] `AirspeedVelocity.jl` regression comments on PRs; a documented performance budget.
+- [x] `AirspeedVelocity.jl` regression comments on PRs; a documented performance
+      budget. **Done 2026-09-19**, and split in two, because the two numbers fail
+      differently.
+
+      **Allocation counts gate**, in `test/quality/performance.jl`, so
+      `just verify` and CI both reach it without a workflow of its own. ±10 %
+      against `test/harness/baseline.toml` — loose for a deterministic number,
+      and meant to be: it catches a copy reintroduced or a closure per node, not
+      a dictionary resizing a bucket. It skips loudly across Julia minor
+      versions, because a gate that fires for the wrong reason gets switched off.
+      Proved to fire before being trusted.
+
+      **Wall time reports**, via `.github/workflows/Benchmark.yml`. On a shared
+      runner it varies by a factor of two between runs, so a blocking comparison
+      would be a false-failure generator, and a check that cries wolf is a check
+      somebody turns off.
+
+      The split is not a preference — it is what the interning measurement
+      showed: the deterministic number showed −22 % plainly, and the timing
+      statistic reported the opposite. `benchmark/workload.jl` is included by the
+      harness *and* by the AirspeedVelocity suite, so the two cannot drift into
+      measuring different documents.
 - [ ] Extended fuzz campaign (24 h) across all three encodings before the freeze.
 - [x] **E5** — `test/unit/cross_encoding.jl`, a home for properties every encoding
       must share. Two defects survived this session in the same blind spot: the

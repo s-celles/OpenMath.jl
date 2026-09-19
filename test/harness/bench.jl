@@ -30,23 +30,10 @@ const ROOT = normpath(joinpath(@__DIR__, "..", ".."))
 # existing item, and this file is rewritten every time it is measured.
 const BASELINE = joinpath(@__DIR__, "baseline.toml")
 
-# A document with the shape real ones have: nesting, symbols, numbers of every
-# awkward kind, a string that needs escaping.
-function specimen(n::Int)
-    leaf(i) = OMS"arith1#plus"(OMInteger(i), OMFloat(i / 7),
-        OMVariable("x$(i)"), OMString("a<b&c λ"))
-    body = foldl((acc, i) -> OMS"arith1#times"(acc, leaf(i)), 1:n;
-        init = OMInteger(big(2)^200))
-    return OMObject(body)
-end
-
-const ENCODINGS = (
-    (:xml, OpenMath.xml, s -> OpenMath.parse(s; format = :xml)),
-    (:json, OpenMath.json, s -> OpenMath.parse(s; format = :json)),
-    (:mathml, OpenMath.mathml, s -> OpenMath.parse(s; format = :mathml)),
-    (:binary, obj -> String(OpenMath.binary(obj)),
-        s -> OpenMath.parse(Vector{UInt8}(codeunits(s)); format = :binary))
-)
+# The workload is defined once, in benchmark/workload.jl, because
+# AirspeedVelocity measures the same thing on every pull request and two
+# definitions of "the document we measure" would drift apart.
+include(joinpath(ROOT, "benchmark", "workload.jl"))
 
 struct Measurement
     name::String

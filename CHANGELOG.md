@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **performance budget**, in two halves because the two numbers fail
+  differently. Allocation counts are deterministic within a Julia version, so
+  they gate: `test/quality/performance.jl` fails on a rise beyond ±10 % of
+  `test/harness/baseline.toml`, and skips loudly across Julia minor versions.
+  Wall time on a shared runner varies by roughly a factor of two between runs,
+  so it reports: `.github/workflows/Benchmark.yml` runs AirspeedVelocity on each
+  pull request and comments. `benchmark/workload.jl` is shared by the harness and
+  the suite, so they cannot measure different documents.
+
 - `just invalidations` — a `SnoopCompile` audit of what loading this package
   invalidates in code other packages already hold. Loading OpenMath invalidates
   nine method instances and **none** of them comes from a method this package
