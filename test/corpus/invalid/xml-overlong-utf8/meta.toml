@@ -1,0 +1,12 @@
+source = "XML 1.0 §2.2; found by property P11, 2026-09-19"
+tags = ["invalid", "xml", "security"]
+strict = true
+provenance = "shrunk-counterexample"
+expect_error = "OpenMathError"
+reason = """
+An overlong encoding of NUL (e0 80 80): a byte sequence no encoder produces and \
+every decoder meets. The reader called `strip` on the element text, `strip` \
+calls `isspace`, and `isspace` on an invalid Char raises Base.InvalidCharError \
+— a Julia exception escaping a parser that guarantees only OpenMathError does \
+(REQ-SEC-001). The tokenizer now refuses malformed UTF-8 with the offset."""
+skip = ["json", "binary", "mathml"]

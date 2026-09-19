@@ -75,8 +75,14 @@ end
 
 # The first element, ignoring an XML declaration and any comment.
 function _looks_like_mathml(src::AbstractString)
-    p = XMLPullParser(String(src))
+    # The whole of this is a guess about which reader to call, so *nothing* here
+    # may raise: the reader it chooses is where a malformed document gets its
+    # error, with the right message and, in `:recover`, no error at all. The
+    # tokenizer's construction is inside the `try` because it rejects invalid
+    # UTF-8, and that rejection escaping from a sniff would bypass `:recover`
+    # entirely — which is exactly what it did.
     try
+        p = XMLPullParser(String(src))
         ev = next_event!(p)
         while !(ev isa XMLDocumentEnd)
             ev isa XMLStartElement && return localname(ev.name) == "math"

@@ -445,13 +445,52 @@ existed and was never looked for. Worth a phase so the lesson is not filed under
       original — more than a bundled asset or a test fixture should carry.
       Downloading is not redistribution, so nothing is lost.
 - [x] `lookup`, `signature`, `describe`, `arity`, `validate_against_cds`.
-- [ ] Official error CDs (`error1`) wired into `:recover` mode (§5.3) — another
-      upstream TODO closed.
-- [ ] Harness: a CD-driven test item asserting every bundled CD parses, every symbol
-      resolves, and every embedded example validates against its own signature.
+- [x] Error CDs wired into `:recover` mode (§5.3). **Done 2026-09-19.** `:recover`
+      was accepted as a mode name and behaved exactly like `:strict`: it threw.
+      Now it never raises — an unreadable subtree becomes an error object in its
+      own position and the structure around it survives — in all three text
+      readers, because honouring `mode` in one of three is worse than in none.
 
-**Exit criteria** — all official CDs parse; `validate_against_cds` is clean on the
-entire `corpus/cd/`; arity/signature violations are detected on hand-built negatives.
+      **The specification named a dictionary that does not exist.** §5.3 asks for
+      `error1#unexpected_symbol`; the official CD is called `error`, not `error1`,
+      and its three symbols — `unhandled_symbol`, `unexpected_symbol`,
+      `unsupported_CD` — are *all* about a symbol, one absent from a dictionary,
+      one unimplemented, one whose dictionary is missing. None describes a
+      malformed integer, and writing one there would state something false in a
+      vocabulary other implementations read. `moreerrors#encodingError` says
+      exactly the right thing at the cost of being experimental rather than
+      official: a true statement in an experimental vocabulary beats a false one
+      in an official vocabulary.
+
+      A resource limit still raises, deliberately. `:recover` is for documents
+      that are broken, not for documents that are attacking you.
+- [x] Harness: a CD-driven test item asserting every bundled CD parses, every symbol
+      resolves, and every embedded example validates against its own signature.
+      **Done 2026-09-19**, over all 1114 embedded `<CMP>`, `<FMP>` and `<Example>`
+      objects in every directory, not just Official.
+
+      It found **our** defect first: `sts_arity` recognised `sts#nassoc` as
+      unbounded and not `sts#nary`, though the `sts` dictionary defines both as
+      "an arbitrary number of copies of the argument". Every n-ary symbol in the
+      official set carried the arity of its own wrapper — `list1#list` accepted
+      exactly one element — and no hand-written test had ever covered an `nary`
+      signature, though `list1`, `set1`, `linalg2` and `s_data1` are nothing but.
+
+      Then it found that **the official set is not self-consistent**: 96 issues
+      across four classes, tabulated in `upstream-bugs.md` — symbols cited that
+      no dictionary defines (`relation1#le`, `calculus1#defintint`), examples
+      contradicting their own STS signature, `s_data1#moment` with `sts#nary` in
+      the *return* position, and one FMP with a dangling `OMR`. Two further
+      classes are not faults and are named so the exception list is not mistaken
+      for one: `error#unexpected_symbol` cites a non-existent symbol *on purpose*,
+      and `scscp_transient_1` is defined at run time. Pinned by class, so a new
+      kind fails and a fixed dictionary shows up as an expectation that stopped
+      firing.
+
+**Exit criteria** — met. All official CDs parse; `validate_against_cds` runs over
+all 1114 embedded objects with every remaining issue accounted for by class; and
+arity/signature violations are detected on hand-built negatives *and* on the
+dictionaries' own examples.
 
 ---
 

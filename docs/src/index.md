@@ -56,6 +56,43 @@ julia> o.warnings
  "no OpenMath namespace declared"
 ```
 
+`:recover` goes further: it **never raises**, and puts an OpenMath error object
+where the unreadable part was, so the structure around it survives. It is for
+ingesting a corpus nobody has vetted, where stopping at the first bad document
+means processing none of them.
+
+```jldoctest
+julia> using OpenMath
+
+julia> o = OpenMath.parse("""<OMOBJ xmlns="http://www.openmath.org/OpenMath" version="2.0">
+                               <OMA><OMS cd="arith1" name="plus"/>
+                                 <OMI>not-a-number</OMI><OMI>2</OMI></OMA></OMOBJ>""";
+                          mode = :recover);
+
+julia> o.object.applicant
+OMS(arith1#plus)
+
+julia> o.object.arguments[1].head
+OMS(moreerrors#encodingError)
+
+julia> o.object.arguments[2]
+OMI(2)
+```
+
+The symbol is `moreerrors#encodingError`, whose Content Dictionary defines it as
+"the error which is returned when an application detects a lexical or syntactic
+error", with one argument, a string explaining it. The official `error`
+dictionary was not used, although it is official and `moreerrors` is
+experimental, because all three symbols `error` defines are about a *symbol* —
+one absent from a dictionary, one not implemented, one whose dictionary is
+missing — and none of them describes a malformed integer. A true statement in an
+experimental vocabulary beats a false one in an official vocabulary.
+
+A **resource limit still raises**, deliberately. Limits exist to stop work on
+hostile input; turning a depth bomb into an error node and carrying on would
+mean the attacker still gets the work done. `:recover` is for documents that are
+broken, not for documents that are attacking you — see [Security](security.md).
+
 ## Writing the XML encoding
 
 ```jldoctest

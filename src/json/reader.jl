@@ -70,7 +70,12 @@ Decode the OpenMath JSON encoding (standard §3.3).
 function read_json(src::AbstractString; mode::Symbol = :strict)
     mode in (:strict, :lenient, :recover) ||
         throw(ArgumentError("mode must be :strict, :lenient or :recover, got $(repr(mode))"))
+    return with_recovery(mode) do
+        _read_json(src, mode)
+    end
+end
 
+function _read_json(src::AbstractString, mode::Symbol)
     value = scan_json(src)
     obj = _members(value)
     obj === nothing && _jperr(_JROOT, "the document must be a JSON object")
@@ -94,7 +99,7 @@ function read_json(src::AbstractString; mode::Symbol = :strict)
     id === nothing || id isa String || _jperr(_JROOT, "\"id\" must be a string")
 
     # Depth was already bounded by the scanner, so the build below is bounded too.
-    node = _build_json(inner, _sub(_JROOT, "object"))
+    node = _build_json(inner, _sub(_JROOT, "object"), mode)
     node isa OMNode ||
         _jperr(_sub(_JROOT, "object"),
             "the document object may not be foreign content")
@@ -127,7 +132,7 @@ end
 # outcome REQ-SEC-002 exists to prevent. The XML reader, the binary reader and
 # all four writers have always used explicit stacks; this one now does too, so
 # depth is bounded by `max_depth` and by memory, as everywhere else.
-function _build_json(value, path::_JPath)
+function _build_json(value, path::_JPath, mode::Symbol = :strict)
     stack = _JFrame2[]
     pending::Union{Nothing, Tuple{Any, _JPath}} = (value, path)
     result::Any = nothing
@@ -136,7 +141,9 @@ function _build_json(value, path::_JPath)
         while pending !== nothing
             v, p = pending
             pending = nothing
-            node = _build_json_node(stack, v, p)
+            node = _recovering(mode) do
+                _build_json_node(stack, v, p)
+            end
             if node === nothing                     # a composite frame was pushed
                 check_limit(:max_depth, length(stack), limits().max_depth)
                 f = stack[end]
@@ -157,7 +164,9 @@ function _build_json(value, path::_JPath)
             continue
         end
         pop!(stack)
-        result = _json_assemble(f)
+        result = _recovering(mode) do
+            _json_assemble(f)
+        end
     end
 end
 

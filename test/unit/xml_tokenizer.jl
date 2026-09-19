@@ -162,3 +162,50 @@ end
     @test localname("OMOBJ") == "OMOBJ"
     @test prefix("OMOBJ") == ""
 end
+
+@testitem "tokenizer: invalid UTF-8 is a parse error, not a Julia error (REQ-SEC-001)" tags = [
+    :unit, :xml] begin
+    using OpenMath
+    # `"g\xe0\x80\x80"` is an overlong encoding of NUL: a byte sequence no
+    # encoder should produce and every decoder will meet. The reader handed it
+    # to `strip`, which calls `isspace`, which raises `Base.InvalidCharError` —
+    # so a Julia exception escaped a parser that guarantees only `OpenMathError`
+    # does (REQ-SEC-001).
+    #
+    # Found by P11, and reachable by P8 all along: its generator draws valid
+    # Unicode, so the one class of input a byte-oriented tokenizer most needs to
+    # survive was the one class it was never given. The generator now includes
+    # raw bytes.
+    #
+    # Rejecting is the right answer, not recovering the bytes: XML 1.0 §2.2
+    # requires every character to be a legal Unicode character, so this is a
+    # lexical error and naming it one is correct.
+    bad = "g\xe0\x80\x80"
+    for format in (:xml, :mathml, :json)
+        err = try
+            OpenMath.parse(bad; format = format)
+            nothing
+        catch e
+            e
+        end
+        @test "$(format): $(err === nothing ? "accepted" : string(typeof(err)))" ==
+              "$(format): $(OpenMath.OpenMathParseError)"
+    end
+
+    # Inside a document, too, not only as the whole of it.
+    inside = "<OMOBJ xmlns=\"http://www.openmath.org/OpenMath\" version=\"2.0\">" *
+             "<OMSTR>\xe0\x80\x80</OMSTR></OMOBJ>"
+    @test_throws OpenMath.OpenMathParseError OpenMath.parse(inside; format = :xml)
+
+    # And `:recover` turns it into a document, as it does every other lexical
+    # error, rather than letting the Julia exception through.
+    for format in (:xml, :mathml)
+        @test OpenMath.parse(bad; format = format, mode = :recover) isa OMObject
+    end
+
+    # Valid UTF-8 outside the BMP is untouched: this rejects malformed bytes,
+    # not unusual characters.
+    fine = "<OMOBJ xmlns=\"http://www.openmath.org/OpenMath\" version=\"2.0\">" *
+           "<OMV name=\"変数\"/></OMOBJ>"
+    @test OpenMath.parse(fine; format = :xml).object == OMVariable("変数")
+end

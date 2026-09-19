@@ -313,7 +313,19 @@ end
 
     # Arbitrary Unicode, not just ASCII: the tokenizer scans bytes, so multi-byte
     # characters and lone continuation bytes are exactly where it can go wrong.
-    text = Data.Text(Data.UnicodeCharacters(); min_len = 0, max_len = 40)
+    unicode = Data.Text(Data.UnicodeCharacters(); min_len = 0, max_len = 40)
+
+    # And arbitrary *bytes*, which is not the same generator. `UnicodeCharacters`
+    # draws valid characters, so this property ran for months without ever
+    # seeing a malformed encoding — the one class of input a byte-oriented
+    # tokenizer most needs to survive. `"g\xe0\x80\x80"`, an overlong NUL,
+    # made `strip` call `isspace` on an invalid `Char` and let
+    # `Base.InvalidCharError` escape, breaking REQ-SEC-001 in `:strict` as much
+    # as anywhere. P11 found it because it happened to draw one; this makes it
+    # deliberate.
+    bytes = map(v -> String(UInt8.(v)),
+        Data.Vectors(Data.Integers(0, 255); min_size = 0, max_size = 40))
+    text = Data.OneOf(unicode, bytes)
 
     @check max_examples = 1000 function p8_json(src = text)
         try
@@ -339,6 +351,56 @@ end
             true
         catch err
             err isa OpenMath.OpenMathError
+        end
+    end
+end
+
+@testitem "P11: :recover never throws, and returns a writable object" tags = [
+    :property] begin
+    using Supposition, Supposition.Data, OpenMath
+    include(joinpath(@__DIR__, "..", "harness", "generators.jl"))
+
+    # P8 says parsing stays inside `OpenMathError`. `:recover` makes a stronger
+    # promise — it does not raise at all (§5.3) — and a stronger promise needs
+    # its own property, because "never" is a claim about inputs nobody wrote.
+    #
+    # Raw bytes as well as valid Unicode: drawing a malformed encoding is what
+    # found `Base.InvalidCharError` escaping the tokenizer, a defect older than
+    # `:recover` and squarely in `:strict` too.
+    text = Data.OneOf(
+        Data.Text(Data.UnicodeCharacters(); min_len = 0, max_len = 40),
+        map(v -> String(UInt8.(v)),
+            Data.Vectors(Data.Integers(0, 255); min_size = 0, max_size = 40)))
+
+    for format in (:xml, :json, :mathml)
+        @check max_examples = 700 function p11_total(src = text)
+            try
+                obj = OpenMath.parse(src; format = format, mode = :recover)
+                # And what comes back is a real document, not a half-built one:
+                # it must survive being written and read again. A recovery that
+                # produced an unwritable object would have moved the failure
+                # rather than handled it.
+                obj isa OMObject && OpenMath.xml(obj) isa String
+            catch err
+                # A resource limit is deliberately still raised, so it is the one
+                # exception the promise allows.
+                err isa OpenMath.OpenMathLimitError
+            end
+        end
+    end
+
+    # Fed a *mutilated real document* rather than noise, which is where P8b
+    # found what random text could not: a corrupted valid document reaches deep
+    # into the reader, and is also what a flaky peer actually sends.
+    @check max_examples = 400 function p11_mutilated(
+            obj = Generators.gen_node(), cut = Data.Integers(0, 400))
+        src = OpenMath.xml(OMObject(obj))
+        n = min(cut, ncodeunits(src))
+        fragment = String(codeunits(src)[1:n])
+        try
+            OpenMath.parse(fragment; format = :xml, mode = :recover) isa OMObject
+        catch err
+            err isa OpenMath.OpenMathLimitError
         end
     end
 end

@@ -686,3 +686,112 @@ that implementation. If the decision is ever revisited, that is the one to send.
 None of this affects us. The entries below exist so that `just oracle` can
 classify a disagreement as a known upstream limitation rather than a failure, and
 they do that job whether or not anyone upstream has been told.
+
+---
+
+## OpenMath Content Dictionaries — the official set is not self-consistent
+
+- **Found**: 2026-09-19, roadmap Phase 5, writing the CD-driven harness item
+- **Affected**: the official Content Dictionary set as served by
+  <https://openmath.org/cd/>, fetched by `just corpus-fetch` on 2026-09-17;
+  38 Official dictionaries plus the contributed and experimental directories
+- **Reported**: not yet — recorded here first
+- **Workaround**: `test/unit/cd.jl` pins each class below in an explicit
+  exception list, so these do not fail the gate and a **new** one does
+
+### Reproducer
+
+Load every dictionary and every STS signature, then run
+`validate_against_cds` over every `<CMP>`, `<FMP>` and `<Example>` the
+dictionaries themselves contain — 1114 embedded objects:
+
+```julia
+reg = OpenMath.CDRegistry()
+for dir in readdir(joinpath("refs", "cd", "cd"); join = true)
+    isdir(dir) || continue
+    for (k, v) in OpenMath.load_cd_directory(dir).dictionaries
+        reg.dictionaries[k] = v
+    end
+end
+OpenMath.load_sts_directory!(reg, joinpath("refs", "cd", "sts"))
+```
+
+### Expected / actual
+
+96 issues in 1114 objects, in four classes. The first two are **defects**; the
+last two are not, and are listed so the distinction is on the record.
+
+**1. A symbol that does not exist is named.** The dictionary cited defines a
+symbol of a similar name, or none:
+
+| Cited | The dictionary actually defines | Cited by |
+|:--|:--|:--|
+| `relation1#le` | `leq` | `interval1`, 6 times |
+| `calculus1#defintint` | `defint` | `interval1#oriented_interval` |
+| `arith1#eq` | — (`relation1#eq`) | `linalgpoly1#minimum_poly` |
+| `list3#append` | — (`list1#append`) | `list4#reverse` |
+| `list3#list_selector` | — | `list4#entry` |
+| `interval1#ordered_interval` | `oriented_interval` | `calculus1#defint` |
+| `linalg3#rowcount`, `columncount`, `size` | — | 35 times, across `linalg*` |
+| `linalg5#rank` | — | `linalg4mat#constant` |
+| `meta#CDGroupName` | — | `scscp2#signature` |
+| `linalgspec1#banded` | — (the dictionary defines three symbols, none of them `banded`) | `linalgspec1#tridiagonal`, its own CD |
+| `norm1#…` | — (no `norm1.ocd` is served at all) | `dimensions1#velocity` |
+
+**2. An example contradicts its own STS signature.** Every one of these
+signatures is binary — `mapsto(Object, Object, Boolean)` or the like, with no
+`nary` — and the dictionary's own example applies the symbol to three arguments,
+or to one:
+
+| Symbol | Signature | Applied to | Where |
+|:--|--:|--:|:--|
+| `relation1#eq` | 2 | 3, and 1 | `monoid1`, `field1`, `transc2#arctan` |
+| `logic1#implies` | 2 | 3, and 1 | `monoid1`, `field1`, `ring1#ring` |
+| `set1#in` | 2 | 3, and 4 | `group1#is_normal`, `polygb2#in` |
+| `arith1#minus` | 2 | 1 | `interval1`, `fns4#maps_to` |
+| `list1#map` | 2 | 3, and 1 | `fns2#apply_to_list`, `permutation1#sign` |
+| `fns2#apply_to_list` | 2 | 1 | 8 times |
+| `poly#degree` | 1 | 2 | `linalgpoly1#minimum_poly` |
+| `polyslp#prog_body` | 1 | 3, and 5 | `polyslp` |
+| `relation1#geq` | 2 | 1 | `linalgpoly1#minimum_poly` |
+
+**3. `s_data1#moment` has `sts#nary` in the return position.** Not an example
+defect but a signature one, and worth separating because the reading is subtle:
+
+```xml
+<OMA><OMS cd="sts" name="mapsto"/>
+  <OMS cd="sts" name="NumericalValue"/>
+  <OMS cd="sts" name="NumericalValue"/>
+  <OMA><OMS cd="sts" name="nary"/><OMS cd="sts" name="NumericalValue"/></OMA>
+</OMA>
+```
+
+`sts#mapsto` says "the first n-1 children denote the types of the arguments, the
+last denotes the return type", so as written this is a two-argument function
+returning *an arbitrary number of* numerical values. The example applies it to
+15. Presumably `mapsto(NumericalValue, nary(NumericalValue), NumericalValue)`
+was meant.
+
+**4. `polynomial3#quotient` has a dangling reference.** Its FMP declares
+`id="pr"` and `id="q"` and then cites `#pr` and **`#r`**. No element carries the
+id `r`; `q` is almost certainly what was meant. §3.1.2 requires the target to
+exist, so the FMP is not a valid OpenMath document — `validate` rejects it, and
+that is the only object in all 1114 it rejects.
+
+**5. Not defects, recorded so the exception list is not mistaken for one.**
+
+- `error#unexpected_symbol` and `error#unsupported_CD` cite `arith1#plurse` and
+  the dictionary `specfun1` **on purpose**: an example of an unexpected symbol
+  has to contain one. Flagging them is the check working.
+- `scscp_transient_1` is a transient dictionary, defined at run time by an SCSCP
+  session rather than served statically, so it is absent by design.
+
+### What it cost us
+
+One defect of our own, found by the same run and fixed before this entry was
+written: `sts_arity` recognised `sts#nassoc` as unbounded and not `sts#nary`,
+though the `sts` dictionary defines both in the same words — "an arbitrary
+number of copies of the argument". So every n-ary symbol in the official set had
+the arity of its own wrapper, and `list1#list` accepted exactly one element.
+That defect accounted for most of the first run's noise, and was indistinguishable
+from an upstream fault until the signature was read.

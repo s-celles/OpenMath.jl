@@ -73,7 +73,12 @@ has constructs with no OpenMath counterpart.
 function read_mathml(src::AbstractString; mode::Symbol = :strict, strict::Bool = true)
     mode in (:strict, :lenient, :recover) ||
         throw(ArgumentError("mode must be :strict, :lenient or :recover, got $(repr(mode))"))
+    return with_recovery(mode) do
+        _read_mathml(src, mode, strict)
+    end
+end
 
+function _read_mathml(src::AbstractString, mode::Symbol, strict::Bool)
     p = XMLPullParser(src)
     stack = _MMLFrame[]
     result = nothing
@@ -123,7 +128,9 @@ function read_mathml(src::AbstractString; mode::Symbol = :strict, strict::Bool =
             end
 
             if ev.selfclosed
-                node = _mml_build(frame, strict)
+                node = _recovering(mode) do
+                    _mml_build(frame, strict)
+                end
                 node === nothing ||
                     (isempty(stack) ? (result = node) : push!(parent.children, node))
             else
@@ -134,7 +141,9 @@ function read_mathml(src::AbstractString; mode::Symbol = :strict, strict::Bool =
             isempty(stack) && throw(OpenMathParseError(
                 "end tag </$(ev.name)> without a matching start tag"; offset = ev.offset))
             frame = pop!(stack)
-            node = _mml_build(frame, strict)
+            node = _recovering(mode) do
+                _mml_build(frame, strict)
+            end
             node === nothing ||
                 (isempty(stack) ? (result = node) : push!(stack[end].children, node))
 
@@ -152,9 +161,16 @@ function read_mathml(src::AbstractString; mode::Symbol = :strict, strict::Bool =
         end
     end
 
-    result === nothing && throw(OpenMathParseError("the document is empty"; offset = 1))
-    result isa OMObject ||
-        throw(OpenMathParseError("the document element must be <math>"; offset = 1))
+    if result === nothing
+        err = OpenMathParseError("the document is empty"; offset = 1)
+        mode === :recover || throw(err)
+        return recovered_document(sprint(showerror, err))
+    end
+    if !(result isa OMObject)
+        err = OpenMathParseError("the document element must be <math>"; offset = 1)
+        mode === :recover || throw(err)
+        return OMObject(result, "2.0", nothing, nothing, [sprint(showerror, err)])
+    end
     return result
 end
 

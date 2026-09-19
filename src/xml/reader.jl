@@ -106,7 +106,12 @@ deviations and record them in `result.warnings`) or `:recover`.
 function read_xml(src::AbstractString; mode::Symbol = :strict)
     mode in (:strict, :lenient, :recover) ||
         throw(ArgumentError("mode must be :strict, :lenient or :recover, got $(repr(mode))"))
+    return with_recovery(mode) do
+        _read_xml(src, mode)
+    end
+end
 
+function _read_xml(src::AbstractString, mode::Symbol)
     p = XMLPullParser(src)
     diag = _Diagnostics()
     scopes = Vector{Dict{String, String}}()
@@ -129,9 +134,23 @@ function read_xml(src::AbstractString; mode::Symbol = :strict)
             _check_namespace(scopes, ev, mode, diag)
             tag = localname(ev.name)
             parent = isempty(stack) ? nothing : stack[end]
-            tag in _OM_ELEMENTS || throw(OpenMathParseError(
-                "unknown OpenMath element <$(ev.name)>"; offset = ev.offset,
-                path = (parent === nothing ? "" : _path(parent)) * "/" * tag))
+            if !(tag in _OM_ELEMENTS)
+                err = OpenMathParseError("unknown OpenMath element <$(ev.name)>";
+                    offset = ev.offset,
+                    path = (parent === nothing ? "" : _path(parent)) * "/" * tag)
+                mode === :recover || throw(err)
+                # Skip what we cannot name. Its content is not OpenMath as far as
+                # this reader is concerned, so it is consumed the same way an
+                # OMFOREIGN body is rather than tokenised into frames that would
+                # each fail in turn.
+                ev.selfclosed || read_raw_until_end!(p, ev.name)
+                pop!(scopes)
+                node = recovery_error(err)
+                _warn!(diag, "recovered: " * sprint(showerror, err))
+                isempty(stack) ? (result = OMObject(node)) :
+                _attach!(stack, node, frame_of_parent(parent))
+                continue
+            end
 
             check_limit(:max_depth, length(stack) + 1, maxdepth)
             frame = _Frame(ev.name, tag, _content_attributes(ev.attributes), ev.offset,
@@ -151,7 +170,7 @@ function read_xml(src::AbstractString; mode::Symbol = :strict)
 
             if ev.selfclosed
                 pop!(scopes)
-                node = _build(frame, mode, diag)
+                node = _build_recovering(frame, mode, diag)
                 isempty(stack) ? (result = node) : _attach!(stack, node, frame)
             else
                 push!(stack, frame)
@@ -162,7 +181,7 @@ function read_xml(src::AbstractString; mode::Symbol = :strict)
                 "end tag </$(ev.name)> without a matching start tag"; offset = ev.offset))
             frame = pop!(stack)
             pop!(scopes)
-            node = _build(frame, mode, diag)
+            node = _build_recovering(frame, mode, diag)
             isempty(stack) ? (result = node) : _attach!(stack, node, frame)
 
         elseif ev isa XMLCharacters
@@ -181,15 +200,46 @@ function read_xml(src::AbstractString; mode::Symbol = :strict)
         end
     end
 
-    result === nothing && throw(OpenMathParseError("the document is empty"; offset = 1))
-    result isa OMObject || throw(OpenMathParseError(
-        "the document element must be <OMOBJ>, found <$(_tag_of(result))>"; offset = 1))
+    if result === nothing
+        err = OpenMathParseError("the document is empty"; offset = 1)
+        mode === :recover || throw(err)
+        return recovered_document(sprint(showerror, err))
+    end
+    if !(result isa OMObject)
+        err = OpenMathParseError(
+            "the document element must be <OMOBJ>, found <$(_tag_of(result))>";
+            offset = 1)
+        mode === :recover || throw(err)
+        # The root is not an OMOBJ, but what was read is still an object: wrap it
+        # rather than discarding a document that only got its envelope wrong.
+        return OMObject(result, "2.0", nothing, nothing,
+            [sprint(showerror, err)])
+    end
     isempty(diag.warnings) && return result
     return OMObject(result.object, result.version, result.cdbase, result.id,
         _collect_warnings(diag))
 end
 
 _tag_of(x) = x isa OMOrForeign ? String(kind(x)) : string(typeof(x))
+
+# `_build`, but in `:recover` an element that cannot be assembled becomes an
+# error object in its own position, so the structure around it survives. That is
+# the behaviour worth having: a corpus item with one bad integer is still an
+# application of `arith1#plus` to something and a two.
+function _build_recovering(f::_Frame, mode::Symbol, diag::_Diagnostics)
+    mode === :recover || return _build(f, mode, diag)
+    try
+        return _build(f, mode, diag)
+    catch err
+        err isa OpenMathParseError || rethrow()
+        _warn!(diag, "recovered: " * sprint(showerror, err))
+        return recovery_error(err)
+    end
+end
+
+# The parent frame an orphaned node attaches to. Separate because the skip path
+# above has no frame of its own to hand `_attach!`.
+frame_of_parent(parent::_Frame) = parent
 
 function _attach!(stack::Vector{_Frame}, node, frame::_Frame)
     isempty(stack) && _perr(frame, "<$(frame.tag)> has no parent element")

@@ -238,6 +238,19 @@ end
 
 _is_sts(s, name) = s isa OMSymbol && s.cd == "sts" && s.name == name
 
+# The `sts` dictionary defines `nary` and `nassoc` in the same words — "an
+# arbitrary number of copies of the argument" — differing only in whether the
+# operator is associative on them, which is about flattening and not about how
+# many there may be. Either one means the arity is unbounded.
+#
+# Only `nassoc` was recognised, so every n-ary symbol in the official set came
+# back with the arity of its own `nary(...)` wrapper: `list1#list` accepted
+# exactly one element. A set rather than two comparisons, so a third combinator
+# is one line and a deliberate one.
+const _STS_UNBOUNDED = Set(["nary", "nassoc"])
+
+_is_sts_unbounded(s) = any(n -> _is_sts(s, n), _STS_UNBOUNDED)
+
 """
     sts_arity(signature) -> Union{Nothing,Int}
 
@@ -245,8 +258,9 @@ The number of arguments a signature admits, or `nothing` when it is n-ary.
 
 An STS signature reads `mapsto(T₁, …, Tₙ, Result)`: the last argument is the
 result type, so the arity is one less than the number of arguments. A parameter
-wrapped in `sts#nassoc` makes the symbol n-ary, and then there is no fixed arity
-to report.
+wrapped in `sts#nary` or `sts#nassoc` makes the symbol n-ary — the `sts`
+dictionary defines both as "an arbitrary number of copies of the argument" — and
+then there is no fixed arity to report.
 """
 function sts_arity(sig::OMObject)
     a = sig.object
@@ -255,7 +269,7 @@ function sts_arity(sig::OMObject)
     length(a.arguments) >= 1 || return nothing
     params = a.arguments[1:(end - 1)]
     for p in params
-        p isa OMApplication && _is_sts(p.applicant, "nassoc") && return nothing
+        p isa OMApplication && _is_sts_unbounded(p.applicant) && return nothing
     end
     return length(params)
 end

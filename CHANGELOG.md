@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`mode = :recover`** now does what it has always claimed (spec §5.3). It was
+  accepted as a mode name and behaved exactly like `:strict` — it threw. It now
+  never raises: an unreadable subtree becomes an OpenMath error object in its own
+  position and the structure around it survives, in all three text readers. The
+  symbol is `moreerrors#encodingError`, defined as "the error which is returned
+  when an application detects a lexical or syntactic error"; the *official*
+  `error` dictionary was not used because all three symbols it defines are about
+  a **symbol**, not an encoding, and naming one would be a false statement in a
+  vocabulary other implementations read. A resource limit still raises: `:recover`
+  is for documents that are broken, not for documents that are attacking you.
+
 - [`share_structure`](https://s-celles.github.io/OpenMath.jl/dev/passes/), the
   inverse of `expand_references`: repeated subtrees become one definition and a
   set of `OMR` references (§3.1.2). Keeping the first occurrence as the
@@ -51,6 +62,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `sts_arity` treated `sts#nassoc` as unbounded but not `sts#nary`, though the
+  `sts` dictionary defines both as "an arbitrary number of copies of the
+  argument". Every n-ary symbol in the official Content Dictionary set therefore
+  carried the arity of its own wrapper — `list1#list` accepted exactly one
+  element — and `validate_against_cds` reported arity violations on the
+  dictionaries' own examples. Found by the new CD-driven harness item, on real
+  data; no hand-written test had covered an `nary` signature.
+
 - `arith1#root` applied to one argument. `<root/>` with no `<degree>` qualifier
   is the square root, and the missing `2` was not being supplied — so the
   Symbolics phrasebook raised `MethodError`. Found by the MathML.jl oracle, and
@@ -71,6 +90,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rule that exists. Every refusal now names its Appendix F section.
 
 ### Security
+
+- **`Base.InvalidCharError` could escape the XML and MathML readers** on
+  malformed UTF-8, breaking the REQ-SEC-001 guarantee that only `OpenMathError`
+  leaves a parser — in `:strict` as much as anywhere. `"g\xe0\x80\x80"`, an
+  overlong encoding of NUL, reached `strip`, which calls `isspace`, which raises
+  on an invalid `Char`. The tokenizer now refuses malformed UTF-8 with the byte
+  offset, which is what XML 1.0 §2.2 requires anyway. Property P8 had covered
+  this ground for months without reaching it: its generator draws *valid*
+  Unicode, so the one class of input a byte-oriented tokenizer most needs to
+  survive was the one class it was never given. Both P8 and P11 now draw raw
+  bytes, and `test/corpus/invalid/xml-overlong-utf8/` pins it.
+- `OpenMath.parse` built a tokenizer while *guessing* whether a document was
+  MathML, outside the reader's recovery, so a lexical error in the guess bypassed
+  `:recover` entirely. The guess is now total, as a guess must be.
 
 - The gate enforcing that parsed content never reaches `eval` walked `src/` and
   not `ext/`. The `Symbolics` extension is the one place in this package that

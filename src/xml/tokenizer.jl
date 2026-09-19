@@ -53,7 +53,34 @@ mutable struct XMLPullParser
     finished::Bool
 end
 
-XMLPullParser(data::AbstractString) = XMLPullParser(String(data), 1, String[], false)
+function XMLPullParser(data::AbstractString)
+    text = String(data)
+    _check_utf8(text)
+    return XMLPullParser(text, 1, String[], false)
+end
+
+# XML 1.0 §2.2 requires every character in a document to be a legal Unicode
+# character, so a malformed byte sequence is a lexical error and saying so is
+# correct. Saying so *here* is what matters: the readers call `strip` on element
+# text, `strip` calls `isspace`, and `isspace` on an invalid `Char` raises
+# `Base.InvalidCharError` — a Julia exception escaping a parser that guarantees
+# only `OpenMathError` does (REQ-SEC-001).
+#
+# The check is one pass over the bytes and only on construction, so it costs a
+# scan of the input once rather than a branch at every character.
+function _check_utf8(text::String)
+    isvalid(text) && return nothing
+    # Report where, because "the document is not UTF-8" is not actionable on a
+    # megabyte of it. Iterating with `pairs` decodes the same way the rest of
+    # Julia will, so the first character it reports as invalid is the first one
+    # that would have raised.
+    for (i, c) in pairs(text)
+        isvalid(c) || throw(OpenMathParseError(
+            "the input is not valid UTF-8; XML 1.0 §2.2 admits only legal " *
+            "Unicode characters"; offset = i))
+    end
+    throw(OpenMathParseError("the input is not valid UTF-8"; offset = 1))
+end
 
 """
     localname(qname) -> String
