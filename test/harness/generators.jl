@@ -146,6 +146,31 @@ function gen_object(; max_layers::Int = 3)
     end
 end
 
+"""
+    gen_shared(; max_layers = 2)
+
+Objects built to *contain repetition*, for exercising [`share_structure`](@ref).
+
+`gen_node` produces a repeated subtree about once in thirteen draws, and never
+more than one — so a property checked on it spends nine tenths of its budget
+asserting that sharing an object with nothing to share returns it unchanged.
+This plants a composite subtree at several positions instead, so the pass has
+work to do on every example.
+"""
+function gen_shared(; max_layers::Int = 2)
+    body = _composite(gen_node(; max_layers = max_layers))
+    return map(Data.Pairs(Data.Pairs(body, gen_node(; max_layers = max_layers)),
+        gen_symbol)) do p
+        (repeated, other) = p.first
+        head = p.second
+        # `repeated` appears three times, twice at the same depth and once
+        # nested, so both the flat case and the case where a shared subtree
+        # contains another are reached.
+        inner = OMApplication(head, OMNode[repeated, other])
+        return OMApplication(head, OMNode[repeated, other, repeated, inner])
+    end
+end
+
 # --- vacuity ------------------------------------------------------------------
 
 """

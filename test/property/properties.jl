@@ -222,6 +222,67 @@ end
     Regression.flush!()
 end
 
+@testitem "P10: share_structure preserves meaning and never points forward" tags = [
+    :property] begin
+    using Supposition, OpenMath
+    include(joinpath(@__DIR__, "..", "harness", "generators.jl"))
+    include(joinpath(@__DIR__, "..", "harness", "regression.jl"))
+
+    # Sharing is the one pass that *adds* references, so it is the one that can
+    # invent a dangling or forward one. Expansion is the definition of what an
+    # object means, so this is the property: sharing then expanding is expanding.
+    # Non-vacuity first, and as an assertion rather than a hope: on `gen_node`
+    # this property spent nine tenths of its budget checking that sharing an
+    # object with nothing to share returns it unchanged. `gen_shared` plants
+    # repetition deliberately.
+    changed = count(1:200) do _
+        obj = Supposition.example(Generators.gen_shared())
+        share_structure(obj) !== obj
+    end
+    @test "sharing has work to do" ==
+          (changed >= 190 ? "sharing has work to do" :
+           "only $(changed) of 200 generated objects had anything to share")
+
+    @check max_examples = 400 function p10_meaning(obj = Generators.gen_shared())
+        Regression.checked("p10_meaning", obj) do obj
+            expand_references(share_structure(obj)) == expand_references(obj)
+        end
+    end
+
+    @check max_examples = 400 function p10_idempotent(obj = Generators.gen_shared())
+        Regression.checked("p10_idempotent", obj) do obj
+            once = share_structure(obj)
+            share_structure(once) == once
+        end
+    end
+
+    # §3.2.5 forbids a forward reference outright, so a shared object that had
+    # one could not be written to binary at all. Checked structurally rather than
+    # by writing, so a failure names the pass rather than the writer.
+    @check max_examples = 400 function p10_no_forward_reference(
+            obj = Generators.gen_shared())
+        Regression.checked("p10_no_forward_reference", obj) do obj
+            nodes = collect_nodes(share_structure(obj))
+            defined = Dict{String, Int}()
+            for (i, n) in enumerate(nodes)
+                n isa OMReference && continue
+                n.id === nothing && continue
+                haskey(defined, n.id) || (defined[n.id] = i)
+            end
+            all(enumerate(nodes)) do (i, n)
+                n isa OMReference || return true
+                target = OpenMath.reference_target(n)
+                target === nothing && return true      # external, another document
+                # A reference the original already carried may point anywhere the
+                # original allowed; the ones this pass adds may not point forward.
+                get(defined, target, i + 1) < i || !haskey(defined, target)
+            end
+        end
+    end
+
+    Regression.flush!()
+end
+
 @testitem "P6: the base64 codec is a bijection" tags = [:property] begin
     using Supposition, Supposition.Data, OpenMath
     using OpenMath: base64_encode, base64_decode
@@ -321,8 +382,10 @@ end
                                          "only $(get(counts, k, 0)) in 400 draws")"
     end
     # OMR is absent by construction: a reference needs a matching id elsewhere in
-    # the tree, which the recursive generator cannot arrange. Structure sharing is
-    # covered by corpus/standard/omr-sharing and by the expand_references tests.
+    # the tree, which the recursive generator cannot arrange. Sharing is covered
+    # by `gen_shared`, which plants repetition and lets `share_structure` put the
+    # references in — see P10, where the non-vacuity floor is asserted rather
+    # than assumed.
     @test get(counts, :OMR, 0) == 0
 
     Regression.flush!()

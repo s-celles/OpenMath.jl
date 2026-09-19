@@ -126,3 +126,105 @@ end
     @test any(i -> i.code === :dangling_reference, validate(bad))
     @test_throws OpenMath.OpenMathReferenceError expand_references(bad)
 end
+
+@testitem "share_structure: it is the inverse of expand_references" tags = [
+    :unit, :passes] begin
+    using OpenMath
+    # The property that matters. Sharing may change how an object is written; it
+    # may not change what it means, and expansion is the definition of that.
+    sub = OMS"arith1#plus"(OMVariable("x"), OMInteger(1))
+    obj = OMS"arith1#times"(sub, sub, OMS"arith1#power"(sub, OMInteger(2)))
+
+    shared = share_structure(obj)
+    @test expand_references(shared) == expand_references(obj)
+    @test canonicalize(shared) == canonicalize(obj)
+
+    # And it did something: three copies became one definition and two references.
+    @test count_nodes(shared) < count_nodes(obj)
+    references = filter(n -> n isa OMReference, collect_nodes(shared))
+    @test length(references) == 2
+end
+
+@testitem "share_structure: nothing to share leaves the object alone" tags = [
+    :unit, :passes] begin
+    using OpenMath
+    obj = OMS"arith1#plus"(OMVariable("x"), OMInteger(1))
+    @test share_structure(obj) === obj
+
+    # A leaf is never worth sharing: an `OMR` costs more than `<OMI>1</OMI>` in
+    # every encoding the standard defines. The threshold is a keyword, not a
+    # hard rule, so a caller who knows better can say so.
+    repeated_leaf = OMS"arith1#plus"(OMInteger(7), OMInteger(7), OMInteger(7))
+    @test share_structure(repeated_leaf) === repeated_leaf
+    @test count(n -> n isa OMReference,
+        collect_nodes(share_structure(repeated_leaf; min_nodes = 1))) == 2
+end
+
+@testitem "share_structure: no reference precedes its definition (§3.2.5)" tags = [
+    :unit, :passes] begin
+    using OpenMath
+    # The binary encoding forbids forward references outright, so a sharing pass
+    # that emitted one would produce objects this package cannot write. Keeping
+    # the *first* occurrence as the definition is what makes that impossible —
+    # asserted here rather than left as a property of the traversal order.
+    inner = OMS"arith1#plus"(OMVariable("x"), OMInteger(1))
+    outer = OMS"arith1#times"(inner, OMInteger(2))
+    obj = OMS"fns1#identity"(outer, inner, outer, inner)
+
+    nodes = collect_nodes(share_structure(obj))
+    ids = Dict{String, Int}()
+    for (i, n) in enumerate(nodes)
+        n isa OMReference && continue
+        n.id === nothing || (ids[n.id] = min(get(ids, n.id, i), i))
+    end
+    for (i, n) in enumerate(nodes)
+        n isa OMReference || continue
+        target = OpenMath.reference_target(n)
+        target === nothing && continue
+        @test haskey(ids, target)
+        @test ids[target] < i
+    end
+end
+
+@testitem "share_structure: it is idempotent, and survives every encoding" tags = [
+    :unit, :passes] begin
+    using OpenMath
+    sub = OMS"arith1#plus"(OMVariable("x"), OMS"transc1#sin"(OMVariable("y")))
+    obj = OMObject(OMS"arith1#times"(sub, sub, sub))
+
+    shared = share_structure(obj)
+    @test share_structure(shared) == shared
+
+    # Sharing is only useful if the encodings can carry it. The binary writer
+    # already honours sharing that is in the object; until now nothing created
+    # any, so that path was exercised by one hand-built fixture.
+    for (format, write) in ((:xml, OpenMath.xml), (:json, OpenMath.json),
+        (:mathml, OpenMath.mathml), (:binary, OpenMath.binary))
+        back = OpenMath.parse(write(shared); format = format)
+        @test canonicalize(back) == canonicalize(obj)
+    end
+end
+
+@testitem "share_structure: an id something points at is never taken away" tags = [
+    :unit, :passes] begin
+    using OpenMath
+    # If a node already carries an id that an existing OMR names, replacing that
+    # node with a reference would delete the anchor and leave the other reference
+    # dangling. So such a node may serve as a definition and may not be replaced.
+    sub = OMS"arith1#plus"(OMVariable("x"), OMInteger(1))
+    second = OMApplication(OMS"arith1#plus",
+        [OMVariable("x"), OMInteger(1)]; id = "keep")
+    obj = OMS"fns1#identity"(sub, second, OMReference("#keep"))
+
+    shared = share_structure(obj)
+    kept = filter(n -> !(n isa OMReference) && n.id == "keep", collect_nodes(shared))
+    @test length(kept) == 1
+    @test expand_references(shared) == expand_references(obj)
+
+    # A minted id never collides with one already in the document.
+    minted = OMApplication(OMS"arith1#times", [sub, sub]; id = "s1")
+    ids = [n.id
+           for n in collect_nodes(share_structure(minted))
+           if !(n isa OMReference) && n.id !== nothing]
+    @test length(ids) == length(unique(ids))
+end

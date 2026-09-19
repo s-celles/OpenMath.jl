@@ -79,7 +79,7 @@ export validate, isvalid_openmath
 
 # Passes
 export resolve_cdbase, minimize_cdbase, collapse_attributions
-export expand_references, strip_ids, canonicalize
+export expand_references, share_structure, strip_ids, canonicalize
 export isinternal, reference_target
 
 # Limits

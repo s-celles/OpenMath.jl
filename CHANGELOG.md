@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [`share_structure`](https://s-celles.github.io/OpenMath.jl/dev/passes/), the
+  inverse of `expand_references`: repeated subtrees become one definition and a
+  set of `OMR` references (§3.1.2). Keeping the first occurrence as the
+  definition is what keeps a reference from preceding its target, which the
+  binary encoding forbids outright (§3.2.5). Leaves are never shared — an `OMR`
+  costs more than the leaf — and an `id` an existing reference names is never
+  taken away. Measured on an expression holding one subterm four times: XML
+  44 %, JSON 49 %, binary 53 % smaller. Never applied for you.
+
 - A generated **[Conformance](https://s-celles.github.io/OpenMath.jl/dev/conformance/)**
   page: coverage per encoding and per corpus group, measured by the conformance
   driver rather than typed. `test/harness/report.jl` calls the same

@@ -75,6 +75,7 @@ resolve_cdbase
 minimize_cdbase
 collapse_attributions
 expand_references
+share_structure
 strip_ids
 canonicalize
 ```

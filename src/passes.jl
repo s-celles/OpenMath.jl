@@ -412,3 +412,152 @@ function canonicalize(x::OMObject; base::AbstractString = CD_BASE)
             base = x.cdbase === nothing ? base : x.cdbase),
         x.version, nothing, nothing)
 end
+
+# --- structure sharing --------------------------------------------------------
+
+"""
+    share_structure(x; min_nodes = 2) -> typeof(x)
+
+The inverse of [`expand_references`](@ref): find repeated subtrees, keep the
+first occurrence, and replace the rest by [`OMReference`](@ref)s to it
+(standard §3.1.2).
+
+`expand_references(share_structure(x))` equals `expand_references(x)` — sharing
+changes how an object is written, never what it means.
+
+The first occurrence is what becomes the definition, so no reference ever
+precedes its target. That is not a nicety: the binary encoding forbids forward
+references outright (§3.2.5), and a pass that produced one would build objects
+this package could not write.
+
+`min_nodes` is the smallest subtree worth sharing. The default of `2` excludes
+leaves, for which a reference costs more than the leaf in every encoding the
+standard defines.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> sub = OMS"arith1#plus"(OMVariable("x"), OMInteger(1));
+
+julia> shared = share_structure(OMS"arith1#times"(sub, sub));
+
+julia> count(n -> n isa OMReference, collect_nodes(shared))
+1
+
+julia> expand_references(shared) == OMS"arith1#times"(sub, sub)
+true
+```
+"""
+function share_structure(x::OMOrForeign; min_nodes::Integer = 2)
+    state = _SharingState(x, Int(min_nodes))
+    isempty(state.repeated) && return x
+    return _share(x, state)
+end
+
+function share_structure(x::OMObject; min_nodes::Integer = 2)
+    inner = share_structure(x.object; min_nodes = min_nodes)
+    inner === x.object && return x
+    return OMObject(inner, x.version, x.cdbase, x.id)
+end
+
+struct _SharingState
+    repeated::Set{OMNode}          # subtrees that occur more than once
+    pinned::Dict{OMNode, String}   # subtree => an id an existing OMR names
+    taken::Set{String}             # every id in the document, plus minted ones
+    assigned::Dict{OMNode, String} # subtree => the id its definition carries
+    counter::Base.RefValue{Int}
+end
+
+function _SharingState(x::OMOrForeign, min_nodes::Int)
+    nodes = collect_nodes(x)
+    seen = Dict{OMNode, Int}()
+    taken = Set{String}()
+    anchored = Set{String}()        # ids an existing OMR names
+    for n in nodes
+        if n isa OMReference
+            target = reference_target(n)
+            target === nothing || push!(anchored, target)
+        else
+            n.id === nothing || push!(taken, n.id)
+        end
+        # `==` and `hash` both ignore `id` (REQ-OM-004), so two subtrees that
+        # differ only in their anchors are one key here — which is what makes a
+        # `Dict` the whole of the duplicate detection.
+        _shareable(n, min_nodes) && (seen[n] = get(seen, n, 0) + 1)
+    end
+    repeated = Set{OMNode}(k for (k, v) in seen if v > 1)
+
+    # An id that an existing OMR names cannot simply be dropped: doing so would
+    # leave that reference dangling. Where one occurrence of a repeated subtree
+    # carries such an id, the definition adopts it, and the reference keeps
+    # pointing at a structurally identical object.
+    pinned = Dict{OMNode, String}()
+    for n in nodes
+        (n isa OMReference || n.id === nothing) && continue
+        (n.id in anchored && n in repeated) || continue
+        held = get(pinned, n, nothing)
+        if held === nothing
+            pinned[n] = n.id
+        elseif held != n.id
+            # Two occurrences, two live anchors, and only one can survive
+            # sharing — so this subtree is left alone entirely. Rare, and the
+            # alternative is a dangling reference.
+            delete!(repeated, n)
+        end
+    end
+    return _SharingState(repeated, pinned, taken, Dict{OMNode, String}(), Ref(0))
+end
+
+# An `OMForeign` is excluded: its content is opaque to us, and `OMR` inside a
+# foreign object means whatever the foreign encoding says it does, not this.
+function _shareable(n, min_nodes::Int)
+    n isa OMNode || return false
+    n isa OMReference && return false
+    return count_nodes(n) >= min_nodes
+end
+
+function _mint!(state::_SharingState)
+    while true
+        state.counter[] += 1
+        candidate = "s" * string(state.counter[])
+        if !(candidate in state.taken)
+            push!(state.taken, candidate)
+            return candidate
+        end
+    end
+end
+
+function _share(x::OMOrForeign, state::_SharingState)
+    (x isa OMNode && x in state.repeated) || return _rebuild_shared(x, state)
+
+    existing = get(state.assigned, x, nothing)
+    if existing !== nothing
+        # The definition is already in the output, ahead of this occurrence in
+        # document order because this is a pre-order walk.
+        return OMReference("#" * existing)
+    end
+
+    # This is the first occurrence, so it becomes the definition. It adopts a
+    # pinned id if any occurrence of this subtree carries one, keeps its own if
+    # it has one, and otherwise gets a fresh one.
+    id = get(state.pinned, x, x.id)
+    id === nothing && (id = _mint!(state))
+    state.assigned[x] = id
+    return _with_id(_rebuild_shared(x, state), id)
+end
+
+_rebuild_shared(x::OMLeaf, ::_SharingState) = x
+_rebuild_shared(x::OMForeign, ::_SharingState) = x
+_rebuild_shared(x::OMOrForeign, state::_SharingState) = _rebuild(x, n -> _share(n, state))
+
+_with_id(x::OMApplication, id) = OMApplication(x.applicant, x.arguments, x.cdbase, id)
+_with_id(x::OMError, id) = OMError(x.head, x.arguments, x.cdbase, id)
+_with_id(x::OMAttribution, id) = OMAttribution(x.attributes, x.object, x.cdbase, id)
+_with_id(x::OMBinding, id) = OMBinding(x.binder, x.variables, x.body, x.cdbase, id)
+_with_id(x::OMInteger, id) = OMInteger(x.value, id)
+_with_id(x::OMFloat, id) = OMFloat(x.value, id)
+_with_id(x::OMString, id) = OMString(x.value, id)
+_with_id(x::OMBytes, id) = OMBytes(x.value, id)
+_with_id(x::OMVariable, id) = OMVariable(x.name, id)
+_with_id(x::OMSymbol, id) = OMSymbol(x.cdbase, x.cd, x.name, id)

@@ -325,11 +325,25 @@ both items are declared TODO upstream.
 - [x] Decision **D7** — the standard contradicts itself about the sharing flag;
       `docs/src/design/binary-backend.md` records which reading we follow and why,
       and `upstream-bugs.md` records the four defects found in §3.2 itself.
-- [ ] `share_structure` — the inverse of `expand_references`, finding repeated
-      subtrees and introducing `id`/`OMR`. The binary writer honours sharing that is
-      already in the object; nothing yet *creates* it.
+- [x] `share_structure` — the inverse of `expand_references`, finding repeated
+      subtrees and introducing `id`/`OMR`. **Done 2026-09-19.** Keeping the *first*
+      occurrence as the definition is what makes a forward reference impossible,
+      which §3.2.5 forbids outright; a leaf is never shared, because an `OMR`
+      costs more than the leaf in every encoding. On an expression holding one
+      subterm four times: XML 44 %, JSON 49 %, binary 53 % smaller.
 
-**Exit criteria** — met, except `share_structure`: four encodings agree on 100 % of
+      Two cases the unit tests were written for and the implementation got wrong
+      first. An `id` an existing `OMR` names cannot be dropped — the definition
+      adopts it instead — and where two occurrences carry *different* live
+      anchors the subtree is left alone, because only one could survive.
+
+      **P10 was vacuous before it was useful.** On `gen_node`, 30 of 400 objects
+      had anything to share, so nine tenths of the budget asserted that sharing
+      an object with nothing to share returns it unchanged. `gen_shared` plants
+      repetition, and the non-vacuity floor is now asserted in the test rather
+      than hoped for.
+
+**Exit criteria** — met: four encodings agree on 100 % of
 the corpus; `standard/omr-sharing` survives a round-trip through binary and back, and
 the shared form is byte-identical to the standard's Figure 3.6 with its one defect
 corrected; binary fuzz clean.
