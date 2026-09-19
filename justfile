@@ -204,6 +204,17 @@ docs:
 # --- everything ---------------------------------------------------------------
 
 # Quality, tests and docs — what CI runs. Never the opt-in section above.
+# Set up the opt-in SnoopCompile environment for the invalidation audit.
+invalidations-setup:
+    mkdir -p refs/invalidations-env
+    printf '[deps]\nOpenMath = "a3e62119-7808-4860-a560-991581b033be"\nSnoopCompile = "aa65fe97-06da-5843-b5b1-d5d13cad87d2"\nSnoopCompileCore = "e2b509da-e806-4183-be48-004708413034"\n\n[sources]\nOpenMath = {path = "../.."}\n' > refs/invalidations-env/Project.toml
+    {{julia}} --project=refs/invalidations-env -e 'using Pkg; Pkg.instantiate()'
+
+# Count the method instances loading OpenMath invalidates, and fail on a rise.
+# `just invalidations --save` records the current count as the ceiling.
+invalidations *ARGS:
+    {{julia}} --project=refs/invalidations-env --startup-file=no test/harness/invalidations.jl {{ARGS}}
+
 # Regenerate the conformance report: the docs page (committed) and the JSON
 # (gitignored). A test asserts the page matches a fresh run.
 conformance-report:

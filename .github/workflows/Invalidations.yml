@@ -35,7 +35,17 @@ jobs:
       - uses: julia-actions/julia-invalidations@v1
         id: invs_default
 
-      - name: Report
+      # This step used to `echo` the two numbers and stop. A workflow that
+      # prints a comparison and leaves the comparing to whoever reads the log is
+      # the same as no workflow: nobody reads a green job. It now fails.
+      - name: Compare
         run: |
-          echo "PR:      ${{ steps.invs_pr.outputs.total }} (deps: ${{ steps.invs_pr.outputs.deps }})"
-          echo "default: ${{ steps.invs_default.outputs.total }} (deps: ${{ steps.invs_default.outputs.deps }})"
+          pr=${{ steps.invs_pr.outputs.total }}
+          base=${{ steps.invs_default.outputs.total }}
+          echo "PR:      $pr (deps: ${{ steps.invs_pr.outputs.deps }})"
+          echo "default: $base (deps: ${{ steps.invs_default.outputs.deps }})"
+          if [ "$pr" -gt "$base" ]; then
+            echo "::error::this branch invalidates $pr method instances against           $base on the default branch. Every one of them is latency a downstream           user pays without asking. Run \`just invalidations\` locally: it says           whether the cause is a method this package inserts, which is ours to           narrow, or two dependencies meeting, which is not."
+            exit 1
+          fi
+          echo "no regression ($pr <= $base)"

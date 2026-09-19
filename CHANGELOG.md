@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `just invalidations` — a `SnoopCompile` audit of what loading this package
+  invalidates in code other packages already hold. Loading OpenMath invalidates
+  nine method instances and **none** of them comes from a method this package
+  inserts; the one tree is `Dates` superseding
+  `Base.TOML.Printer.is_valid_toml_value(::Any)`, reached through the
+  `PrecompileTools → Preferences → TOML` chain. The count is recorded in
+  `test/harness/baseline.toml`, so a rise fails. Opt-in setup, like the oracles.
+
 - **`mode = :recover`** now does what it has always claimed (spec §5.3). It was
   accepted as a mode name and behaved exactly like `:strict` — it threw. It now
   never raises: an unreadable subtree becomes an OpenMath error object in its own
@@ -61,6 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and then be refused by the phrasebook.
 
 ### Fixed
+
+- `.github/workflows/Invalidations.yml` printed the invalidation count for the
+  branch and for the default branch and left the comparing to whoever read the
+  log, which is the same as not comparing them. It now fails on a rise.
 
 - `sts_arity` treated `sts#nassoc` as unbounded but not `sts#nary`, though the
   `sts` dictionary defines both as "an arbitrary number of copies of the

@@ -72,3 +72,41 @@ Throughput varies by roughly a factor of two between runs on a shared machine, s
 a regression budget against these has to be generous: they catch a change of
 order, not of constant factor. The time-to-first-parse figures are the stable
 ones.
+
+## Invalidations
+
+Loading a package can invalidate compiled code other packages already hold, and
+every invalidated method instance is latency a downstream user pays without
+having asked for it. `just invalidations` measures it.
+
+```
+  method instances invalidated   9
+  trees whose method is ours     0
+  trees from elsewhere           1
+
+  · Dates: is_valid_toml_value  (10 children)
+```
+
+**None of the nine is caused by a method this package inserts.** The single tree
+is `Dates` superseding `Base.TOML.Printer.is_valid_toml_value(::Any)`, reached
+by `OpenMath → PrecompileTools → Preferences → TOML → Dates`: two standard
+libraries meeting on the way in, which is not ours to narrow.
+
+That distinction is the point of the audit. A count alone is not actionable —
+the question is not *how many* but *whose*. An invalidation caused by a method
+we insert is almost always a signature wider than the argument it means, or an
+outright piracy, and both are ours to fix. One caused by a dependency chain is
+not, and reporting them together would make the gate noise.
+
+The number is recorded in `test/harness/baseline.toml`, so a rise fails rather
+than being absorbed, and raising the ceiling is an edit in the same commit as
+whatever caused it. `.github/workflows/Invalidations.yml` makes the same
+comparison on a pull request against the default branch — it used to print the
+two numbers and leave the comparing to whoever read the log, which is the same
+as not comparing them.
+
+It is also the other half of a measurement this documentation already carries.
+[Time to first parse](#Time-to-first-parse) justified adding `PrecompileTools`,
+the package's one dependency, by measuring what it bought: 4.132 s to 0.32 s.
+This measures what it cost: nine invalidations, from the `TOML`/`Dates` pair it
+drags in. Both numbers now exist.

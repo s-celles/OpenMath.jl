@@ -710,7 +710,29 @@ project.
       truth" covered Julia 1.13 and not the 1.10 LTS that `REQ-PRJ-001` names
       equally, and the first CI run found three defects that every local run had
       passed. Julia 1.10 was installed on this machine the whole time.
-- [ ] `SnoopCompile` invalidation audit; `Invalidations.yml` gate.
+- [x] `SnoopCompile` invalidation audit; `Invalidations.yml` gate. **Done
+      2026-09-19.** Loading OpenMath invalidates **9** method instances, and
+      **none** of them is caused by a method this package inserts: the single
+      tree is `Dates` superseding `Base.TOML.Printer.is_valid_toml_value(::Any)`,
+      reached by `OpenMath → PrecompileTools → Preferences → TOML → Dates`.
+
+      The audit reports *whose*, not just how many, because a count alone is not
+      actionable — an invalidation from a method we insert is a signature too
+      wide or a piracy and is ours to narrow, one from two stdlibs meeting is
+      not, and reporting them together would make the gate noise. Recorded in
+      `test/harness/baseline.toml`, so a rise fails; opt-in via
+      `just invalidations-setup`, like the oracles, because `SnoopCompile` is a
+      large dependency and this package has one on purpose.
+
+      `Invalidations.yml` existed and **printed two numbers**, leaving the
+      comparing to whoever read the log — which is the same as not comparing
+      them, since nobody reads a green job. It now fails on a rise. That is the
+      fifth gate in this project found green because it was asleep.
+
+      It also completes a measurement already in the documentation: time to
+      first parse justified adding `PrecompileTools` by what it bought, 4.132 s
+      to 0.32 s. This is what it cost — nine invalidations, from the `TOML`/`Dates`
+      pair it drags in. Both numbers now exist.
 - [x] Allocation-per-node benchmark, and the two defects it found in the JSON
       reader. `_scan_string!` allocated an `IOBuffer` for every string including
       the majority with no escape (−22 %); and error paths were built eagerly,

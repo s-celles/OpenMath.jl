@@ -48,3 +48,11 @@ allocations = 21166
 seconds = 0.000234886
 bytes = 12967
 allocations = 10596
+
+[invalidations]
+# Loading OpenMath invalidates this many method instances. None of
+# them is caused by a method this package inserts; they come from
+# Dates superseding Base.TOML.Printer.is_valid_toml_value(::Any),
+# reached by OpenMath -> PrecompileTools -> Preferences -> TOML -> Dates.
+total = 9
+ours = 0
