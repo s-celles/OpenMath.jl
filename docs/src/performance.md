@@ -110,3 +110,26 @@ It is also the other half of a measurement this documentation already carries.
 the package's one dependency, by measuring what it bought: 4.132 s to 0.32 s.
 This measures what it cost: nine invalidations, from the `TOML`/`Dates` pair it
 drags in. Both numbers now exist.
+
+## What a benchmark of the minimum cannot see
+
+`just bench` reports `minimum(...)` over thirty samples, which is the right
+statistic for comparing *computation* — it discards the runs where the operating
+system or the collector interfered. It is the wrong statistic for an allocation
+change, and it hid one completely.
+
+Interning markup names removed about a fifth of what the XML reader allocates.
+Measured as a minimum over forty runs, the change looked like **+2 % time**:
+the minimum is, almost by definition, a run in which the garbage collector did
+not fire, so the saving has nowhere to show. Measured over 200 consecutive
+parses with collection counted:
+
+| | before | after |
+|:--|--:|--:|
+| wall time, 200 parses | 1549.2 ms | **1372.3 ms** |
+| of which collection | 160.7 ms | 135.2 ms |
+| allocated | 1306.0 MB | **1075.5 MB** |
+
+−11.4 % wall time, not +2 %. The allocation column of
+`test/harness/baseline.toml` is what makes such a change visible; the time
+column cannot, and reading only the time column would have led to reverting it.

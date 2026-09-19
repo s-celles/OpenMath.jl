@@ -7,52 +7,44 @@
 # The time-to-first-parse figures are the stable ones.
 nodes = 1601
 julia = "1.13.0"
-date = "2026-09-18"
+date = "2026-09-19"
 
 ["write-xml"]
-seconds = 0.000911386
+seconds = 0.000913979
 bytes = 34687
 allocations = 15046
 
 ["read-xml"]
-seconds = 0.001193821
+seconds = 0.001194566
 bytes = 34687
-allocations = 32702
+allocations = 25484
 
 ["write-json"]
-seconds = 0.00099539
+seconds = 0.001055523
 bytes = 60676
 allocations = 19649
 
 ["read-json"]
-seconds = 0.001366249
+seconds = 0.001381407
 bytes = 60676
 allocations = 37657
 
 ["write-mathml"]
-seconds = 0.000895812
+seconds = 0.000915164
 bytes = 40686
 allocations = 12640
 
 ["read-mathml"]
-seconds = 0.001325538
+seconds = 0.001372498
 bytes = 40686
-allocations = 40871
+allocations = 35261
 
 ["write-binary"]
-seconds = 0.00111431
-bytes = 12967
+seconds = 0.00112916
+bytes = 12977
 allocations = 21166
 
 ["read-binary"]
-seconds = 0.000234886
-bytes = 12967
+seconds = 0.000231471
+bytes = 12977
 allocations = 10596
-
-[invalidations]
-# Loading OpenMath invalidates this many method instances. None of
-# them is caused by a method this package inserts; they come from
-# Dates superseding Base.TOML.Printer.is_valid_toml_value(::Any),
-# reached by OpenMath -> PrecompileTools -> Preferences -> TOML -> Dates.
-total = 9
-ours = 0

@@ -46,18 +46,11 @@ function recovered_document(message::AbstractString)
         [String(message)])
 end
 
-# Wrap one step of a reader so that in `:recover` a failure becomes an error
-# object in that position and the structure around it survives. In every other
-# mode this is `f()` and costs nothing.
-function _recovering(f, mode::Symbol)
-    mode === :recover || return f()
-    try
-        return f()
-    catch err
-        err isa OpenMathParseError || rethrow()
-        return recovery_error(err)
-    end
-end
+# There is deliberately no `_recovering(f, mode)` helper taking a `do` block.
+# It read well and allocated the closure on *every node*, including in
+# `:strict`, where it does nothing at all — re-recording the benchmark baseline
+# showed +8.5 % allocations in the JSON reader from exactly that. The readers
+# branch on `mode` inline, or call a named function, instead.
 
 # Wrap a reader so that `:recover` returns a document rather than raising.
 #

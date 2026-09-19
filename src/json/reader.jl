@@ -141,7 +141,19 @@ function _build_json(value, path::_JPath, mode::Symbol = :strict)
         while pending !== nothing
             v, p = pending
             pending = nothing
-            node = _recovering(mode) do
+            # Branched rather than wrapped in a closure. `_recovering(mode) do
+            # … end` reads better and allocates the closure on *every* node,
+            # including in `:strict` where it does nothing: re-recording the
+            # benchmark baseline showed +8.5 % allocations in a reader the
+            # recovery work never touched otherwise.
+            node = if mode === :recover
+                try
+                    _build_json_node(stack, v, p)
+                catch err
+                    err isa OpenMathParseError || rethrow()
+                    recovery_error(err)
+                end
+            else
                 _build_json_node(stack, v, p)
             end
             if node === nothing                     # a composite frame was pushed
@@ -164,7 +176,14 @@ function _build_json(value, path::_JPath, mode::Symbol = :strict)
             continue
         end
         pop!(stack)
-        result = _recovering(mode) do
+        result = if mode === :recover
+            try
+                _json_assemble(f)
+            catch err
+                err isa OpenMathParseError || rethrow()
+                recovery_error(err)
+            end
+        else
             _json_assemble(f)
         end
     end

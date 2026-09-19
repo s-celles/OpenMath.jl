@@ -70,6 +70,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The XML and MathML readers allocated a fresh `String` for every element and
+  attribute name, nearly all of which are compared against a constant and then
+  dropped — an allocation profile put it at the top of the reader. That set is
+  closed and tiny, so a name that matches is now returned as the shared literal:
+  **−22 % allocations per node reading XML, −14 % reading MathML**, and −11.4 %
+  wall time over 200 consecutive parses once garbage collection is counted. This
+  is not the interning `SECURITY.md` forbids, which concerns the unbounded names
+  a *document* chooses; nothing a document supplies is retained.
+- `:recover` added a closure per node in the JSON and MathML readers, allocated
+  even in `:strict`, where it does nothing: +8.5 % allocations in a reader the
+  recovery work otherwise never touched. Found by re-recording the benchmark
+  baseline. The readers branch on the mode instead.
+
 - `.github/workflows/Invalidations.yml` printed the invalidation count for the
   branch and for the default branch and left the comparing to whoever read the
   log, which is the same as not comparing them. It now fails on a rise.

@@ -212,6 +212,60 @@ function _skip_pi!(p::XMLPullParser)
     end
 end
 
+# Every element and attribute name this package's readers compare against. A
+# name scanned out of a document that matches one is returned *as this literal*,
+# so the overwhelmingly common case allocates nothing: an allocation profile put
+# the name slice at the top of the XML reader, 15 % of everything it allocates,
+# and almost every one of those strings is compared against a constant and
+# dropped.
+#
+# This is **not** the interning `SECURITY.md` forbids. That rule is about names a
+# *document* chooses — variables and symbols — which are unbounded and
+# attacker-controlled, so retaining them is a memory-exhaustion vector. These are
+# markup names from a closed table that is already in the binary; nothing a
+# document supplies is retained, and a name outside the table is allocated as
+# before. `test/unit/xml_tokenizer.jl` asserts the table still covers both
+# readers' element sets, so it cannot quietly stop applying.
+const _INTERNED_NAMES = (
+    # OpenMath XML elements (§3.1)
+    "OMOBJ", "OMI", "OMF", "OMSTR", "OMB", "OMV", "OMS", "OMA",
+    "OMBIND", "OMBVAR", "OME", "OMATTR", "OMATP", "OMFOREIGN", "OMR",
+    # Strict Content MathML elements (MathML 4 §4.1.3)
+    "math", "cn", "ci", "cs", "cbytes", "csymbol", "apply", "bind",
+    "bvar", "cerror", "semantics", "annotation-xml", "share",
+    # attributes
+    "id", "name", "cd", "cdbase", "href", "encoding", "version",
+    "xmlns", "type", "base", "dec", "hex", "order")
+
+# Grouped by length so a scan compares bytes only against candidates that could
+# match. With the table this small that is the whole of the optimisation; a
+# hash would cost more than it saves.
+# A flat, concretely-typed vector scanned with a length pre-filter. Two earlier
+# shapes were type-unstable — a vector of `NTuple{2,Any}`, then a heterogeneous
+# tuple of tuples indexed by a runtime length — and each boxed on every name
+# scan, making reading *slower* than the allocation the table was meant to
+# remove. With forty entries and a length comparison first, a linear scan is the
+# whole of it; anything cleverer costs more than it saves.
+const _INTERNED_LIST = collect(String, _INTERNED_NAMES)
+const _INTERNED_LENGTHS = Int[ncodeunits(n) for n in _INTERNED_LIST]
+
+function _interned(data::String, from::Int, to::Int)
+    len = to - from + 1
+    @inbounds for j in eachindex(_INTERNED_LIST)
+        _INTERNED_LENGTHS[j] == len || continue
+        c = _INTERNED_LIST[j]
+        same = true
+        for k in 1:len
+            if codeunit(data, from + k - 1) != codeunit(c, k)
+                same = false
+                break
+            end
+        end
+        same && return c
+    end
+    return nothing
+end
+
 function _read_name!(p::XMLPullParser)
     start = p.pos
     i = p.pos
@@ -220,6 +274,8 @@ function _read_name!(p::XMLPullParser)
     end
     i == start && _fail(p, "expected an element or attribute name", start)
     p.pos = i
+    shared = _interned(p.data, start, i - 1)
+    shared === nothing || return shared
     return _slice(p.data, start, i - 1)
 end
 

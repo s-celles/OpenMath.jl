@@ -750,8 +750,41 @@ project.
       it would limit JSON below the other three for no reason. `docs/src/security.md`
       claimed "every traversal uses an explicit stack" throughout — the claim is
       true again rather than aspirational.
-- [ ] Zero-copy path: `SubString{String}` over memory-mapped input, the Julia analogue
-      of the Rust crate's `Cow::Borrowed`.
+- [x] ~~Zero-copy path: `SubString{String}` over memory-mapped input, the Julia
+      analogue of the Rust crate's `Cow::Borrowed`.~~ **Withdrawn as specified,
+      2026-09-19, and redirected — on measurement.**
+
+      Both halves were measured before being built, and neither survives.
+
+      *`SubString` in the object model.* In the case built to favour it most —
+      200 strings of 200 characters — the copied payload is **9 %** of what the
+      reader allocates; on a structure-heavy document, **0 %**. The price is a
+      viral type parameter through every node type, or an abstract field that
+      boxes on every access. Recovering at most a twelfth in the best case is not
+      worth either.
+
+      *Memory-mapped input.* `read(path, String)` is **1.0 %** of read-plus-parse
+      on a 2.9 MB document, and avoiding it needs a byte-oriented tokenizer or a
+      second dependency. There is nothing there.
+
+      **What the measurement pointed at instead.** An allocation profile put the
+      top site at `_slice` in the tokenizer — a fresh `String` per element and
+      attribute name, nearly all of them compared against a constant and dropped.
+      That set is *closed and tiny*, so a scanned name that matches is now
+      returned as the shared literal: **−22 % allocations per node reading XML,
+      −14 % reading MathML.** It is not the interning `SECURITY.md` forbids,
+      which is about unbounded names a *document* chooses; nothing a document
+      supplies is retained.
+
+      **Two methodology findings, both worth more than the item.** The first two
+      shapes of the lookup table were type-unstable — a vector of `NTuple{2,Any}`,
+      then a heterogeneous tuple indexed by a runtime length — and each boxed on
+      every name, making reading **three times slower** than the allocation it
+      was removing. And `just bench` measures with `minimum(...)`, which selects
+      the runs where the collector did not fire and therefore **hides an
+      allocation win by construction**: it showed +2 % time. Over 200 consecutive
+      parses, GC included, the same change is −11.4 % wall time and −17.6 % bytes.
+      The baseline's allocation column is what shows this; its time column cannot.
 - [ ] `AirspeedVelocity.jl` regression comments on PRs; a documented performance budget.
 - [ ] Extended fuzz campaign (24 h) across all three encodings before the freeze.
 - [x] **E5** — `test/unit/cross_encoding.jl`, a home for properties every encoding

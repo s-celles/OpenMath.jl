@@ -209,3 +209,47 @@ end
            "<OMV name=\"変数\"/></OMOBJ>"
     @test OpenMath.parse(fine; format = :xml).object == OMVariable("変数")
 end
+
+@testitem "tokenizer: a known name is returned shared, not allocated afresh" tags = [
+    :unit, :xml] begin
+    using OpenMath
+    using OpenMath: XMLPullParser, next_event!, XMLStartElement, _INTERNED_NAMES
+    # Every element and attribute name was sliced into a *new* `String`, and
+    # almost all of them are immediately compared against a constant and thrown
+    # away. An allocation profile put that slice at the top: 15 % of everything
+    # the XML reader allocates.
+    #
+    # The set is closed and tiny, so a hit returns the shared literal and
+    # allocates nothing. This is *not* the interning `SECURITY.md` forbids: that
+    # is about names a document chooses — variables and symbols, unbounded and
+    # attacker-controlled — where retaining them is a memory-exhaustion vector.
+    # These are markup names from a fixed table that already lives in the binary.
+    p = XMLPullParser("<OMOBJ version=\"2.0\"><OMI>1</OMI></OMOBJ>")
+    ev = next_event!(p)
+    @test ev isa XMLStartElement
+    # `===` and not `==`: the point is that it is the *same object*.
+    @test ev.name === "OMOBJ"
+    @test ev.attributes[1].name === "version"
+
+    # A name outside the table still works; it is simply allocated.
+    q = XMLPullParser("<frobnicate whatsit=\"1\"/>")
+    e2 = next_event!(q)
+    @test e2.name == "frobnicate"
+    @test e2.attributes[1].name == "whatsit"
+
+    # The table must cover every name the readers compare against, or the
+    # optimisation silently stops applying to whichever one drifted out.
+    for name in OpenMath._OM_ELEMENTS
+        @test "$(name): interned" ==
+              "$(name): $(name in _INTERNED_NAMES ? "interned" : "missing")"
+    end
+    for name in OpenMath._MML_ELEMENTS
+        @test "$(name): interned" ==
+              "$(name): $(name in _INTERNED_NAMES ? "interned" : "missing")"
+    end
+    for name in ("id", "name", "cd", "cdbase", "href", "encoding", "version",
+        "xmlns", "type", "base", "dec", "hex")
+        @test "$(name): interned" ==
+              "$(name): $(name in _INTERNED_NAMES ? "interned" : "missing")"
+    end
+end

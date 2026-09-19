@@ -128,9 +128,7 @@ function _read_mathml(src::AbstractString, mode::Symbol, strict::Bool)
             end
 
             if ev.selfclosed
-                node = _recovering(mode) do
-                    _mml_build(frame, strict)
-                end
+                node = _mml_build_recovering(frame, mode, strict)
                 node === nothing ||
                     (isempty(stack) ? (result = node) : push!(parent.children, node))
             else
@@ -141,9 +139,7 @@ function _read_mathml(src::AbstractString, mode::Symbol, strict::Bool)
             isempty(stack) && throw(OpenMathParseError(
                 "end tag </$(ev.name)> without a matching start tag"; offset = ev.offset))
             frame = pop!(stack)
-            node = _recovering(mode) do
-                _mml_build(frame, strict)
-            end
+            node = _mml_build_recovering(frame, mode, strict)
             node === nothing ||
                 (isempty(stack) ? (result = node) : push!(stack[end].children, node))
 
@@ -172,6 +168,18 @@ function _read_mathml(src::AbstractString, mode::Symbol, strict::Bool)
         return OMObject(result, "2.0", nothing, nothing, [sprint(showerror, err)])
     end
     return result
+end
+
+# A named function rather than `_recovering(mode) do … end`: the closure form
+# allocates on every element, including in `:strict` where it does nothing.
+function _mml_build_recovering(f::_MMLFrame, mode::Symbol, strict::Bool)
+    mode === :recover || return _mml_build(f, strict)
+    try
+        return _mml_build(f, strict)
+    catch err
+        err isa OpenMathParseError || rethrow()
+        return recovery_error(err)
+    end
 end
 
 # An `annotation-xml` is foreign content when it carries no `cd`; with a `cd` it
