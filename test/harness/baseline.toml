@@ -7,44 +7,45 @@
 # The time-to-first-parse figures are the stable ones.
 nodes = 1601
 julia = "1.13.0"
-date = "2026-09-19"
+platform = "Linux"
+date = "2026-09-20"
 
 ["write-xml"]
-seconds = 0.000913979
+seconds = 0.001694954
 bytes = 34687
 allocations = 15046
 
 ["read-xml"]
-seconds = 0.001194566
+seconds = 0.002390025
 bytes = 34687
 allocations = 25484
 
 ["write-json"]
-seconds = 0.001055523
+seconds = 0.001703881
 bytes = 60676
 allocations = 19649
 
 ["read-json"]
-seconds = 0.001381407
+seconds = 0.002436783
 bytes = 60676
 allocations = 37657
 
 ["write-mathml"]
-seconds = 0.000915164
+seconds = 0.001495235
 bytes = 40686
 allocations = 12640
 
 ["read-mathml"]
-seconds = 0.001372498
+seconds = 0.002685278
 bytes = 40686
 allocations = 35261
 
 ["write-binary"]
-seconds = 0.00112916
+seconds = 0.002049665
 bytes = 12977
 allocations = 21166
 
 ["read-binary"]
-seconds = 0.000231471
+seconds = 0.000371061
 bytes = 12977
 allocations = 10596

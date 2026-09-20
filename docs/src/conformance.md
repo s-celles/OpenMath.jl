@@ -52,12 +52,17 @@ None. Every item above conforms on this commit.
 
 ## What is not counted here
 
-342 further items are harvested from the
-official Content Dictionaries by `just corpus-fetch`. They are a derived work
-under a licence that asks more of a derived work than a test fixture should
-carry, so they live outside the repository and are **excluded from this
-page**: it reports on what a clean checkout can verify. `just
-conformance-full` runs them too.
+Several hundred further items are harvested from the official Content
+Dictionaries by `just corpus-fetch`. They are a derived work under a licence
+that asks more of a derived work than a test fixture should carry, so they
+live outside the repository and are **excluded from this page**: it reports
+on what a clean checkout can verify. `just conformance-full` runs them too.
+
+How many there are is deliberately not stated. It is a property of whoever
+ran `corpus-fetch`, not of this repository, and this page once printed the
+number from the machine that generated it — so the page claiming to report
+what a clean checkout can verify was itself unreproducible on one, and every
+CI job failed the staleness gate that exists to catch exactly that.
 
 The report behind this page is also available as JSON — `just
 conformance-report` writes it to `refs/conformance.json` — for anyone who

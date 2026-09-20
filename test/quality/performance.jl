@@ -26,9 +26,19 @@
     # then it is not a gate.
     recorded = VersionNumber(baseline["julia"])
     here = VERSION
+    platform = get(baseline, "platform", nothing)
+    # And the operating system, not only the Julia version. The first shape of
+    # this gate guarded the version alone and failed on Windows with
+    # `read-binary: 12803 allocations against 10596 recorded (+21 %)` — a
+    # difference in Base, not a regression in this package. A gate that fires
+    # for the wrong reason gets switched off, which is the whole argument for
+    # skipping loudly instead.
     if (recorded.major, recorded.minor) != (here.major, here.minor)
         @test_skip "baseline recorded on Julia $(recorded), running $(here); " *
                    "re-record with `just bench --save`"
+    elseif platform !== nothing && platform != string(Sys.KERNEL)
+        @test_skip "baseline recorded on $(platform), running $(Sys.KERNEL); " *
+                   "allocation counts are not comparable across platforms"
     else
         include(joinpath(root, "benchmark", "workload.jl"))
         doc = specimen(200)

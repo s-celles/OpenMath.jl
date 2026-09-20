@@ -463,6 +463,10 @@ manual review.
 
 ### Changed
 
+- CI runs Julia **1.10 and 1.13** only. `nightly` and `pre` ran with
+  `continue-on-error: true`, so they could not fail the workflow and could only
+  show a red job nobody was meant to act on.
+
 - Decision **D1** re-examined against `XML.jl` v0.4.6 with measurements, and the
   reasoning corrected. Two of the three original arguments do not survive: the
   binary-artifact objection applies to `EzXML.jl`, not to pure-Julia `XML.jl`, and
@@ -489,6 +493,23 @@ manual review.
   because escaping would change the value.
 
 ### Fixed
+
+- **The conformance page printed a number only the machine that generated it
+  had.** It said "342 further items are harvested", counted from a local
+  `refs/corpus-fetch` clone — so the page claiming to report *what a clean
+  checkout can verify* was itself unreproducible on one, and every CI job failed
+  the staleness gate that exists to catch exactly that. The count is gone; how
+  many there are is a property of whoever ran `corpus-fetch`.
+- The allocation budget guarded the Julia minor version and not the operating
+  system, and fired on Windows with `read-binary: +21 %` — a difference in Base,
+  not a regression here. The baseline records its platform and the gate skips
+  across platforms, as it already did across Julia versions.
+- JET on Julia 1.10 found `frame_of_parent(::Nothing)`: the `:recover` path for
+  an unknown XML element passed a `Union{Nothing,_Frame}` to a function taking a
+  `_Frame`. Unreachable at run time and not provably so — which is a branch.
+- `.github/workflows/Benchmark.yml` failed on every pull request: `benchpkg`
+  needs `--path` alongside the `dirty` revision. It also failed the run, though
+  it is meant to report and not gate; it no longer does either.
 
 - The README announced "early development (v0.0.1)" and "the XML, JSON and binary
   encodings are next" for as long as all four had been implemented, documented

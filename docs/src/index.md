@@ -7,10 +7,14 @@ appearance. An OpenMath object is a small, fully specified tree whose leaves tak
 their meaning from **Content Dictionaries** — machine-readable documents defining
 symbols such as `arith1#plus` or `calculus1#diff`.
 
-!!! warning "Early development"
+!!! warning "v0.1.0, unreleased"
     The object model, validation, the normalisation passes, all four endorsed
-    encodings and Content Dictionary parsing are in place. The API is not yet
-    stable; see the roadmap for what 0.9.0 requires.
+    encodings, Content Dictionary parsing and a `Symbolics.jl` phrasebook are in
+    place. Nothing is tagged or registered, so install from the repository.
+
+    The API is not yet stable: while the series is `0.x`, a minor release may
+    break anything. [Compatibility](compat.md) says exactly what is public, what
+    may change and the four conditions a `1.0.0` would require.
 
 ## Quick start
 

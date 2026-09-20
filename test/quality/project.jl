@@ -384,22 +384,45 @@ end
     end
 end
 
-@testitem "the README does not claim a version the package is not" tags = [:quality] begin
+@testitem "no prose claims a version the package is not" tags = [:quality] begin
     using OpenMath, TOML
     # The README said "early development (v0.0.1)" and "the XML, JSON and binary
     # encodings are next" for as long as all four had been implemented. Prose
     # about the state of the package rots exactly as fast as the package moves,
     # and nothing was reading it.
+    #
+    # First written for `README.md` alone, which was too narrow by one file: the
+    # published front page still pointed at "what 0.9.0 requires" after the
+    # roadmap's phase milestones were renumbered away from it, and a reader
+    # found that before this gate did. It walks the documentation sources too.
     root = pkgdir(OpenMath)
     version = TOML.parsefile(joinpath(root, "Project.toml"))["version"]
     readme = read(joinpath(root, "README.md"), String)
 
-    stale = [v
-             for v in unique(m.match for m in eachmatch(r"v\d+\.\d+\.\d+", readme))
-             if v != "v" * version]
+    prose = Tuple{String, String}[("README.md", readme)]
+    for (dir, _, files) in walkdir(joinpath(root, "docs", "src")), f in files
+
+        endswith(f, ".md") || continue
+        # `compat.md` illustrates the versioning rules with invented numbers —
+        # "0.4.1 to 0.4.2" — which are examples, not claims about this package.
+        f == "compat.md" && continue
+        push!(prose, (relpath(joinpath(dir, f), root), read(joinpath(dir, f), String)))
+    end
+
+    stale = String[]
+    for (name, text) in prose, m in eachmatch(r"\b(?:v|version )(\d+\.\d+\.\d+)", text)
+
+        m.captures[1] == version && continue
+        # A version attached to something else — Julia, a dependency, an
+        # upstream tool — is not a claim about this package.
+        before = text[max(1, m.offset - 40):(m.offset - 1)]
+        occursin(r"(?i)julia|crate|mathml|xml\.jl|gap|openmath 2", before) && continue
+        push!(stale, "$(name): $(m.match)")
+    end
     isempty(stale) ||
-        println("  README names ", join(stale, ", "), " but Project.toml says ", version)
-    @test isempty(stale)
+        println("  Project.toml says $(version); found ", join(unique(stale), ", "))
+    @test isempty(unique(stale))
+
     # Asserted as a short string rather than `occursin(...)`, which on a failure
     # prints the whole README into the test log.
     @test "README states v$(version)" ==

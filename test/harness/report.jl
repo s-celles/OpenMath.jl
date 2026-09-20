@@ -24,8 +24,6 @@ include("corpus.jl")
 # are and reports on the corpus that ships.
 corpus_items() = filter(i -> !startswith(i.name, "harvested/"), Corpus.items())
 
-harvested_count() = count(i -> startswith(i.name, "harvested/"), Corpus.items())
-
 const ENCODINGS = sort(collect(String.(Corpus.ENCODINGS)))
 
 _group(name::AbstractString) = String(first(split(name, '/')))
@@ -84,8 +82,7 @@ function build()
         "items" => length(entries),
         "passing" => count(e -> e["status"] == "pass", entries),
         "valid" => count(e -> e["kind"] == "valid", entries),
-        "invalid" => count(e -> e["kind"] == "invalid", entries),
-        "harvested_excluded" => harvested_count())
+        "invalid" => count(e -> e["kind"] == "invalid", entries))
     merge!(totals, counts)
 
     return Dict{String, Any}(
@@ -293,12 +290,17 @@ function markdown(r)
 
     ## What is not counted here
 
-    $(r["totals"]["harvested_excluded"]) further items are harvested from the
-    official Content Dictionaries by `just corpus-fetch`. They are a derived work
-    under a licence that asks more of a derived work than a test fixture should
-    carry, so they live outside the repository and are **excluded from this
-    page**: it reports on what a clean checkout can verify. `just
-    conformance-full` runs them too.
+    Several hundred further items are harvested from the official Content
+    Dictionaries by `just corpus-fetch`. They are a derived work under a licence
+    that asks more of a derived work than a test fixture should carry, so they
+    live outside the repository and are **excluded from this page**: it reports
+    on what a clean checkout can verify. `just conformance-full` runs them too.
+
+    How many there are is deliberately not stated. It is a property of whoever
+    ran `corpus-fetch`, not of this repository, and this page once printed the
+    number from the machine that generated it — so the page claiming to report
+    what a clean checkout can verify was itself unreproducible on one, and every
+    CI job failed the staleness gate that exists to catch exactly that.
 
     The report behind this page is also available as JSON — `just
     conformance-report` writes it to `refs/conformance.json` — for anyone who

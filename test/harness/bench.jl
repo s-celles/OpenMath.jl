@@ -116,6 +116,11 @@ function main(argv)
             println(io, "# The time-to-first-parse figures are the stable ones.")
             println(io, "nodes = ", nodes)
             println(io, "julia = ", repr(string(VERSION)))
+            # Allocation counts differ between operating systems as well as
+            # between Julia versions — `read-binary` is 21 % higher on Windows
+            # than on Linux, from Base and not from us — so the budget gate has
+            # to know which platform produced these numbers.
+            println(io, "platform = ", repr(string(Sys.KERNEL)))
             println(io, "date = ", repr(string(Dates.today())))
             for m in results
                 println(io, "\n[\"", m.name, "\"]")

@@ -81,8 +81,12 @@ package exports nothing useful and every conformance test is red — by design.
 ### 0.2 CI and automation
 
 - [x] `CI.yml`: matrix `julia-version: [ "1.10", "1.13" ]` (blocking) ×
-      `os: [ubuntu-latest, macOS-latest, windows-latest]`, plus `["nightly", "pre"]`
-      on ubuntu with `continue-on-error: true`.
+      `os: [ubuntu-latest, macOS-latest, windows-latest]`. **`nightly` and `pre`
+      removed 2026-09-20**: they ran with `continue-on-error: true`, so they could
+      not fail the workflow and could only show a red job nobody was meant to act
+      on. A check whose result carries no consequence is noise — and it is the
+      same fault as `Invalidations.yml` printing two numbers without comparing
+      them, in the other direction.
 - [x] `Documenter.yml` — build must fail on any warning.
 - [x] Codecov upload; `Invalidations.yml`; `Dependabot`; `TagBot`; `CompatHelper`.
 - [x] **No** oracle job. The differential test needs a network clone and a Rust

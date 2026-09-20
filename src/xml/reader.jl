@@ -157,8 +157,16 @@ function _read_xml(src::AbstractString, mode::Symbol)
                 pop!(scopes)
                 node = recovery_error(err)
                 _warn!(diag, "recovered: " * sprint(showerror, err))
-                isempty(stack) ? (result = OMObject(node)) :
-                _attach!(stack, node, frame_of_parent(parent))
+                if isempty(stack)
+                    result = OMObject(node)
+                else
+                    # `stack[end]` rather than `parent`: they are the same frame,
+                    # and `parent` is `Union{Nothing,_Frame}` because it was
+                    # computed before this branch knew the stack was non-empty.
+                    # JET could not prove the `nothing` unreachable, and it was
+                    # right to say so — an unprovable branch is a branch.
+                    _attach!(stack, node, stack[end])
+                end
                 continue
             end
 
@@ -246,10 +254,6 @@ function _build_recovering(f::_Frame, mode::Symbol, diag::_Diagnostics)
         return recovery_error(err)
     end
 end
-
-# The parent frame an orphaned node attaches to. Separate because the skip path
-# above has no frame of its own to hand `_attach!`.
-frame_of_parent(parent::_Frame) = parent
 
 function _attach!(stack::Vector{_Frame}, node, frame::_Frame)
     isempty(stack) && _perr(frame, "<$(frame.tag)> has no parent element")

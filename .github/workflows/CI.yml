@@ -18,21 +18,18 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        # The two versions `REQ-PRJ-001` names and `[compat]` admits: the LTS and
+        # the current release. `nightly` and `pre` used to run here as
+        # `experimental: true`, which meant they could not fail the workflow and
+        # could only show a red job nobody was meant to act on. A check whose
+        # result carries no consequence is noise, and this one cost six job
+        # slots a push.
         version: ["1.10", "1.13"]
         os: [ubuntu-latest, macOS-latest, windows-latest]
-        experimental: [false]
-        include:
-          - version: "nightly"
-            os: ubuntu-latest
-            experimental: true
-          - version: "pre"
-            os: ubuntu-latest
-            experimental: true
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3

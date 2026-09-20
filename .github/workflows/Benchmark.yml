@@ -32,6 +32,11 @@ permissions:
 jobs:
   compare:
     runs-on: ubuntu-latest
+    # It reports; it does not gate — so a failure *of the benchmarking* must not
+    # turn a pull request red either. The first version of this workflow did,
+    # and every Dependabot PR came back failed because the `benchpkg` invocation
+    # below was wrong, which says nothing about the change under review.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
         with:
@@ -49,9 +54,12 @@ jobs:
 
       - name: Compare this branch against the base
         run: |
+          # `--path` is required alongside `dirty`, which is the checked-out
+          # working tree; without it `benchpkg` reports "Did not find rev dirty
+          # in repository" and exits 1.
           benchpkg OpenMath \
             --rev="${{ github.event.pull_request.base.sha }},dirty" \
-            --url="${{ github.server_url }}/${{ github.repository }}" \
+            --path=. \
             --bench-on="dirty" \
             --output-dir=results \
             --exeflags="--threads=1"
