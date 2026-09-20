@@ -15,6 +15,14 @@
 One symbol defined by a Content Dictionary: its role, its prose description, the
 formal mathematical properties (`FMP`) that constrain it, and its examples. The
 properties and examples are ordinary OpenMath documents.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> fieldnames(CDDefinition)
+(:name, :role, :description, :properties, :examples)
+```
 """
 struct CDDefinition
     name::String
@@ -31,6 +39,14 @@ Base.show(io::IO, d::CDDefinition) = print(io, "CDDefinition(", d.name, ", ", d.
 
 A parsed Content Dictionary. `cdbase` falls back to [`CD_BASE`](@ref) when the
 file declares none, because that is what an unqualified symbol resolves against.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> fieldnames(ContentDictionary)[1:3]
+(:name, :cdbase, :status)
+```
 """
 struct ContentDictionary
     name::String
@@ -52,6 +68,14 @@ end
 
 The signatures a `.sts` file declares for one dictionary. Each signature is
 itself an OpenMath object, built from the `sts` Content Dictionary.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> fieldnames(STSSignatures)
+(:cd, :signatures)
+```
 """
 struct STSSignatures
     cd::String

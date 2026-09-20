@@ -14,10 +14,30 @@
 #    symbols, so turning attacker-controlled names from a parsed document into
 #    symbols would be an unbounded memory leak (REQ-SEC-001).
 
-"""The base URI of the official OpenMath Content Dictionaries."""
+"""
+The base URI of the official OpenMath Content Dictionaries.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> CD_BASE
+"http://www.openmath.org/cd"
+```
+"""
 const CD_BASE = "http://www.openmath.org/cd"
 
-"""The XML namespace of OpenMath elements."""
+"""
+The XML namespace of OpenMath elements.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> XML_NS
+"http://www.openmath.org/OpenMath"
+```
+"""
 const XML_NS = "http://www.openmath.org/OpenMath"
 
 """
@@ -26,13 +46,47 @@ const XML_NS = "http://www.openmath.org/OpenMath"
 Supertype of every OpenMath *object*. Note that `OMForeign` is not an `OMNode`:
 foreign content is not an OpenMath object, and the grammar admits it only as an
 attribute value or an `OMError` argument.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMInteger(1) isa OMNode
+true
+
+julia> OMForeign("text/plain", "x") isa OMNode   # foreign content is not
+false
+```
 """
 abstract type OMNode end
 
-"""Supertype of the atomic OpenMath objects."""
+"""
+Supertype of the atomic OpenMath objects.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMInteger(1) isa OMLeaf
+true
+
+julia> OMApplication(OMS"arith1#plus", [OMInteger(1)]) isa OMLeaf
+false
+```
+"""
 abstract type OMLeaf <: OMNode end
 
-"""Supertype of the OpenMath objects built from other objects."""
+"""
+Supertype of the OpenMath objects built from other objects.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMApplication(OMS"arith1#plus", [OMInteger(1)]) isa OMComposite
+true
+```
+"""
 abstract type OMComposite <: OMNode end
 
 # ---------------------------------------------------------------- OMFOREIGN ---
@@ -50,6 +104,14 @@ from text that merely looks like markup, and the round trip would stop being
 lossless (REQ-OM-003). A writer therefore emits `value` unchanged, and refuses an
 object whose foreign content is not a well-formed XML fragment rather than
 producing a document that cannot be read back.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMForeign("text/plain", "not OpenMath")
+OMFOREIGN(text/plain, "not OpenMath")
+```
 """
 struct OMForeign
     encoding::Union{Nothing, String}
@@ -68,6 +130,14 @@ end
 
 The positions in which the grammar allows either an OpenMath object or foreign
 content: attribute values and `OMError` arguments.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMForeign("text/plain", "x") isa OMOrForeign
+true
+```
 """
 const OMOrForeign = Union{OMNode, OMForeign}
 
@@ -114,6 +184,14 @@ end
 
 One key/value pair of an attribution (`OMATP` in the XML encoding). The key is
 always a symbol; the value may be foreign content.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMAttributePair(OMS"ecc#type", OMInteger(1))
+OMS(ecc#type)=OMI(1)
+```
 """
 struct OMAttributePair
     key::OMSymbol
@@ -125,6 +203,14 @@ end
 
 A variable bound by an [`OMBinding`](@ref). A non-empty `attributes` list is the
 `OMATTR(…, OMV(name))` form of standard §2.1.2.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMBoundVariable("x").name
+"x"
+```
 """
 struct OMBoundVariable
     name::String
@@ -144,6 +230,17 @@ end
 
 An integer of unbounded magnitude (standard §2.1.1). Values that fit are stored
 as `Int64`, so `OMInteger(5)` and `OMInteger(big(5))` are the same object.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMInteger(5)
+OMI(5)
+
+julia> OMInteger(big(2)^70).value
+1180591620717411303424
+```
 """
 struct OMInteger <: OMLeaf
     value::Union{Int64, BigInt}
@@ -162,6 +259,14 @@ end
 A double-precision floating-point number (standard §2.1.1). `NaN`, the infinities
 and both signed zeros are distinct values here, because the `hex` encoding
 distinguishes their bit patterns.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMFloat(1.5)
+OMF(1.5)
+```
 """
 struct OMFloat <: OMLeaf
     value::Float64
@@ -176,6 +281,14 @@ end
     OMString(value; id = nothing)
 
 A Unicode character string (standard §2.1.1).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMString("a < b")
+OMSTR("a < b")
+```
 """
 struct OMString <: OMLeaf
     value::String
@@ -190,6 +303,14 @@ end
     OMBytes(value; id = nothing)
 
 A sequence of bytes (standard §2.1.1), base64-encoded in the XML encoding.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMBytes(UInt8[0x01, 0x02])
+OMB(2 bytes)
+```
 """
 struct OMBytes <: OMLeaf
     value::Vector{UInt8}
@@ -204,6 +325,14 @@ end
     OMVariable(name; id = nothing)
 
 A variable (standard §2.1.1). `name` must match the `Name` production of §2.3.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMVariable("x")
+OMV(x)
+```
 """
 struct OMVariable <: OMLeaf
     name::String
@@ -230,6 +359,14 @@ cannot be resolved without fetching, so the passes leave it alone rather than
 treating it as broken.
 
 See [`isinternal`](@ref).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMReference("#a")
+OMR(#a)
+```
 """
 struct OMReference <: OMLeaf
     href::String
@@ -260,6 +397,17 @@ isinternal(r::OMReference) = startswith(r.href, '#')
     reference_target(r::OMReference) -> Union{Nothing,String}
 
 The `id` an internal reference names, or `nothing` for an external one.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> reference_target(OMReference("#a"))
+"a"
+
+julia> reference_target(OMReference("http://example.org/d.xml#a")) === nothing
+true
+```
 """
 reference_target(r::OMReference) = isinternal(r) ? String(SubString(r.href, 2)) : nothing
 
@@ -270,6 +418,14 @@ reference_target(r::OMReference) = isinternal(r) ? String(SubString(r.href, 2)) 
 
 The application of `applicant` to `arguments` (standard §2.1.1). The standard
 requires at least the applicant, which this type enforces by construction.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMApplication(OMS"arith1#plus", [OMInteger(1), OMInteger(2)])
+OMA(OMS(arith1#plus), OMI(1), OMI(2))
+```
 """
 struct OMApplication <: OMComposite
     applicant::OMNode
@@ -293,6 +449,14 @@ end
     OMBinding(binder, variables, body; cdbase = nothing, id = nothing)
 
 A binding object (standard §2.1.1): `binder` binds `variables` in `body`.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMBinding(OMS"fns1#lambda", [OMBoundVariable("x")], OMVariable("x"))
+OMBIND(OMS(fns1#lambda), [x], OMV(x))
+```
 """
 struct OMBinding <: OMComposite
     binder::OMNode
@@ -316,6 +480,14 @@ end
 
 An error object (standard §2.1.1). `head` is always a symbol; arguments may be
 foreign content.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMError(OMS"error#unexpected_symbol", [OMS"arith1#plurse"])
+OME(OMS(error#unexpected_symbol), OMS(arith1#plurse))
+```
 """
 struct OMError <: OMComposite
     head::OMSymbol
@@ -338,6 +510,17 @@ end
 
 An attributed object (standard §2.1.1). Nesting is preserved on parse and
 flattened by [`collapse_attributions`](@ref).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> a = OMAttribution([OMAttributePair(OMS"ecc#type", OMS"ecc#integer")],
+                         OMVariable("n"));
+
+julia> a.object
+OMV(n)
+```
 """
 struct OMAttribution <: OMComposite
     attributes::Vector{OMAttributePair}
@@ -364,6 +547,17 @@ The document root of an encoded OpenMath object (`OMOBJ`).
 
 `warnings` records the deviations a `:lenient` parse accepted (REQ-API-005). It
 is diagnostic only and takes no part in equality.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OMObject(OMInteger(1))
+OMOBJ(OMI(1))
+
+julia> OMObject(OMInteger(1)).version
+"2.0"
+```
 """
 struct OMObject
     object::OMNode

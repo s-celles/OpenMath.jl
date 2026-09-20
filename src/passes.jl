@@ -332,6 +332,16 @@ end
     strip_ids(x) -> typeof(x)
 
 Drop every `id`. After [`expand_references`](@ref) they anchor nothing.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> node = OMApplication(OMS"arith1#plus", [OMInteger(1)]; id = "a");
+
+julia> strip_ids(node).id === nothing
+true
+```
 """
 strip_ids(x::OMOrForeign) = _rebuild_stripped(x)
 strip_ids(x::OMObject) = OMObject(strip_ids(x.object), x.version, x.cdbase, nothing)

@@ -261,3 +261,42 @@ end
     @test isempty(changed)
     @test isempty(missing_items)
 end
+
+@testitem "every exported symbol carries a runnable example (REQ-DOC-002)" tags = [
+    :quality] begin
+    using OpenMath
+    # A docstring is a claim; a doctest is a claim the build checks. `checkdocs =
+    # :exports` already fails on a *missing* docstring, and every one of the 81
+    # exported symbols had one — while only 24 carried an example. The rest were
+    # prose that nothing executed, which is the failure mode this whole project
+    # is built against.
+    #
+    # Documenter runs every `jldoctest` on each build, so this gate only has to
+    # assert the blocks exist; their correctness is the docs build's job.
+    exceptions = Dict(
+    # Lives in the Symbolics extension. A `jldoctest` would need Symbolics in
+    # the documentation environment, which would pull the whole SciML stack
+    # into every docs build to check one example. Its block is marked
+    # ```julia and is exercised by `test/unit/symbolics.jl` instead.
+        :symbolics_phrasebook => "extension; tested in test/unit/symbolics.jl")
+
+    without = String[]
+    for n in names(OpenMath)
+        n === :OpenMath && continue
+        haskey(exceptions, n) && continue
+        text = try
+            string(eval(Meta.parse("@doc OpenMath.$(n)")))
+        catch
+            ""
+        end
+        occursin("jldoctest", text) || push!(without, string(n))
+    end
+    isempty(without) || println("  no runnable example: ", join(sort(without), ", "))
+    @test isempty(without)
+
+    # The exception list is not a drawer: every name in it must still be exported,
+    # or it is describing a symbol that no longer exists.
+    for n in keys(exceptions)
+        @test n in names(OpenMath)
+    end
+end

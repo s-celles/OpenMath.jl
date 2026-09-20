@@ -35,6 +35,14 @@ const _LIMITS = Ref(OMLimits())
     limits() -> OMLimits
 
 The limits in force for the current dynamic scope.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> limits().max_depth
+10000
+```
 """
 limits() = _LIMITS[]
 
@@ -43,6 +51,16 @@ limits() = _LIMITS[]
 
 Run `f()` with `l` in force, restoring the previous limits afterwards — including
 when `f` throws.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> with_limits(OMLimits(; max_depth = 5)) do
+           limits().max_depth
+       end
+5
+```
 """
 function with_limits(f, l::OMLimits)
     old = _LIMITS[]

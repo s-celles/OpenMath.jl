@@ -90,6 +90,18 @@ arguments of an application, or called with no arguments for a bare symbol.
 
 `backward` is the reverse: a function from a Julia value to an `OMNode`, keyed on
 the type of its argument, used by [`express`](@ref).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> p = Phrasebook();
+
+julia> define!(p, OMS"arith1#plus", +);
+
+julia> interpret(p, OMS"arith1#plus"(OMInteger(1), OMInteger(2)))
+3
+```
 """
 function define!(p::Phrasebook, s::OMSymbol, forward)
     p.forward[_key(s)] = forward
@@ -136,6 +148,18 @@ Teach `p` to turn a variable name into a value with `f`, a function of one
 This is what a computer algebra system replaces: `Symbolics` wants its own
 variable objects, and a phrasebook that could not say so would force every caller
 in the session to agree.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> p = Phrasebook();
+
+julia> define_variable!(p, name -> Symbol(name));
+
+julia> interpret(p, OMVariable("x"))
+:x
+```
 """
 function define_variable!(p::Phrasebook, f)
     p.variable[] = f
@@ -178,6 +202,14 @@ end
     symbols(p) -> Vector{OMSymbol}
 
 Every symbol `p` can interpret.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> length(symbols(Phrasebook())) > 60
+true
+```
 """
 function symbols(p::Phrasebook)
     out = [OMSymbol(base, cd, name, nothing) for (base, cd, name) in keys(p.forward)]
@@ -193,6 +225,14 @@ const _PHRASEBOOK = Ref{Union{Nothing, Phrasebook}}(nothing)
     current_phrasebook() -> Phrasebook
 
 The phrasebook in force for the current dynamic scope.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> current_phrasebook().name
+"default"
+```
 """
 function current_phrasebook()
     p = _PHRASEBOOK[]
@@ -241,6 +281,14 @@ The Julia value `p` gives to the OpenMath object `x`.
 
 Raises [`OpenMathConversionError`](@ref) for anything `p` has no entry for,
 naming the symbol. Nothing is dropped silently (REQ-PHR-005).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> interpret(Phrasebook(), OMS"arith1#plus"(OMInteger(1), OMInteger(2)))
+3
+```
 """
 interpret(p::Phrasebook, x::OMObject) = interpret(p, x.object)
 interpret(p::Phrasebook, x::OMInteger) = p.leaf[](x.value)
@@ -281,6 +329,14 @@ end
 
 The OpenMath object `p` gives to the Julia value `v`, falling back to
 [`to_openmath`](@ref) for types `p` says nothing about.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> express(Phrasebook(), 3)
+OMI(3)
+```
 """
 function express(p::Phrasebook, v)
     best = nothing

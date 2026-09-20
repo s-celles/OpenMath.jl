@@ -31,6 +31,17 @@ function to_openmath end
 
 The Julia value denoted by the OpenMath object `x`, using the built-in
 correspondence. Extend by dispatch alongside [`to_openmath`](@ref).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> from_openmath(OMInteger(7))
+7
+
+julia> from_openmath(Float64, OMInteger(7))
+7.0
+```
 """
 function from_openmath end
 

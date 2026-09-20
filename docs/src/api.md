@@ -145,6 +145,7 @@ OpenMath.sts_arity
 OpenMath.register!
 OpenMath.isempty_registry
 load_cd_directory
+load_cd_directory!
 load_sts_directory!
 lookup
 describe

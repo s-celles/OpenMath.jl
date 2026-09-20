@@ -66,6 +66,14 @@ end
 Decode the OpenMath JSON encoding (standard §3.3).
 
 `mode` is `:strict`, `:lenient` or `:recover`, as for [`read_xml`](@ref).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> read_json("{\\"kind\\":\\"OMOBJ\\",\\"object\\":{\\"kind\\":\\"OMI\\",\\"integer\\":1}}")
+OMOBJ(OMI(1))
+```
 """
 function read_json(src::AbstractString; mode::Symbol = :strict)
     mode in (:strict, :lenient, :recover) ||

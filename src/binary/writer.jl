@@ -92,6 +92,16 @@ end
     write_binary(io, obj) -> Int
 
 Write the binary encoding of `obj` to `io`, returning the number of bytes written.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> io = IOBuffer();
+
+julia> write_binary(io, OMObject(OMInteger(1)))
+4
+```
 """
 function write_binary(io::IO, obj::Union{OMObject, OMNode})
     document = obj isa OMObject ? obj : OMObject(obj)

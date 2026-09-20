@@ -862,12 +862,31 @@ under budget on 1.10 and 1.13; 24 h fuzz clean.
 
 ## Phase 9 — API stabilisation `v0.9.0`
 
-- [ ] Public API settled; everything not exported is explicitly documented as
-      internal. Not a freeze — `0.x` reserves the right to change a minor.
-- [ ] `docs/src/compat.md` stating the versioning contract: what may change in a
-      patch and in a minor while the series is `0.x`, and what would have to be
-      true before a `1.0.0` is worth declaring.
-- [ ] Doctests on every exported symbol; `checkdocs = :exports` blocking.
+- [x] Public API settled; everything not exported is explicitly documented as
+      internal. **Done 2026-09-20.** The public API is exactly `names(OpenMath)`,
+      and `docs/src/compat.md` says so — including that a documented internal is
+      still internal, which is the case a reader gets wrong.
+- [x] `docs/src/compat.md` stating the versioning contract. **Done 2026-09-20.**
+      It names two things treated as breaking that a case could be made against
+      — a change in what a document decodes to, even to the more correct answer,
+      and a newly rejected document — and two that are not: the text of an error
+      message, and a writer's exact bytes where the object is unchanged. It also
+      writes down what would have to be true for a `1.0.0`, as four conditions
+      rather than a mood; one of them, "at least one real dependant", is not met
+      and cannot be met by working harder.
+- [x] Doctests on every exported symbol; `checkdocs = :exports` blocking.
+      **Done 2026-09-20.** `checkdocs = :exports` was already blocking and
+      already green: all 81 exported symbols had a docstring. **24 had an
+      example.** The other 57 were prose nothing executed, which is the failure
+      mode this project is built against, passing a gate that only asked whether
+      a docstring existed.
+
+      57 doctests written, every one run by the documentation build. A new gate
+      in `test/quality/project.jl` asserts the property rather than leaving it to
+      decay, with one exception that is named and justified in place:
+      `symbolics_phrasebook` lives in the extension, so a `jldoctest` would pull
+      the SciML stack into every docs build to check one example; it is exercised
+      by `test/unit/symbolics.jl` instead.
 - [ ] `CHANGELOG.md` complete from `0.0.1`.
 - [ ] Registration in the General registry under MIT (decision **D6**).
 - [ ] Announce on JuliaLang Discourse; notify the OpenMath Society and the `openmath`

@@ -22,6 +22,7 @@ makedocs(;
         "Round trips" => "round-trip.md",
         "Performance" => "performance.md",
         "Conformance" => "conformance.md",
+        "Compatibility" => "compat.md",
         "Design notes" => ["design/xml-backend.md", "design/json-backend.md",
             "design/binary-backend.md", "design/phrasebook.md",
             "design/mathml-appendix-f.md"],

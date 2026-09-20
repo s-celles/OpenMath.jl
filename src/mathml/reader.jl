@@ -69,6 +69,16 @@ Decode Strict Content MathML (MathML 4 §4.1.3) into an OpenMath object.
 Constructs outside the strict subset are rejected rather than interpreted: the
 normative correspondence is with *Strict* Content MathML, and the full language
 has constructs with no OpenMath counterpart.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> ns = "xmlns=\\"http://www.w3.org/1998/Math/MathML\\"";
+
+julia> read_mathml("<math " * ns * "><cn type=\\"integer\\">1</cn></math>")
+OMOBJ(OMI(1))
+```
 """
 function read_mathml(src::AbstractString; mode::Symbol = :strict, strict::Bool = true)
     mode in (:strict, :lenient, :recover) ||

@@ -36,6 +36,16 @@ kind(::OMReference) = :OMR
     children(x) -> Vector{OMOrForeign}
 
 The immediate sub-objects of `x`, in document order. Leaves have none.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> a = OMApplication(OMS"arith1#plus", [OMInteger(1), OMVariable("x")]);
+
+julia> length(children(a))   # the applicant counts as a child
+3
+```
 """
 children(::OMLeaf) = OMOrForeign[]
 children(::OMForeign) = OMOrForeign[]
@@ -102,6 +112,16 @@ end
     collect_nodes(x) -> Vector{OMOrForeign}
 
 Every sub-object of `x` including `x` itself, in pre-order.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> a = OMApplication(OMS"arith1#plus", [OMInteger(1), OMVariable("x")]);
+
+julia> length(collect_nodes(a))   # the application itself, and its three children
+4
+```
 """
 function collect_nodes(x::Union{OMOrForeign, OMObject})
     out = OMOrForeign[]
@@ -133,6 +153,16 @@ end
     depth(x) -> Int
 
 The length of the longest path from `x` to a leaf, counting both ends.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> a = OMApplication(OMS"arith1#plus", [OMInteger(1), OMVariable("x")]);
+
+julia> depth(a)
+2
+```
 """
 function depth(x::Union{OMOrForeign, OMObject})
     root = x isa OMObject ? x.object : x
@@ -156,6 +186,16 @@ children have been rebuilt.
 
 The recursion is bounded by the configured `max_depth`, which is checked first,
 so this cannot overflow the native stack (REQ-SEC-002).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> a = OMApplication(OMS"arith1#plus", [OMInteger(1), OMVariable("x")]);
+
+julia> map_openmath(n -> n isa OMInteger ? OMInteger(n.value + 1) : n, a)
+OMA(OMS(arith1#plus), OMI(2), OMV(x))
+```
 """
 function map_openmath(f, x::OMOrForeign)
     check_limit(:max_depth, depth(x), limits().max_depth)

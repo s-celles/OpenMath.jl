@@ -14,7 +14,17 @@
 # OpenMath counterpart, and pretending otherwise is the usual way this bridge goes
 # wrong. Non-strict input is refused rather than guessed at (REQ-MML-004).
 
-"""The XML namespace of MathML elements."""
+"""
+The XML namespace of MathML elements.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> MATHML_NS
+"http://www.w3.org/1998/Math/MathML"
+```
+"""
 const MATHML_NS = "http://www.w3.org/1998/Math/MathML"
 
 """
@@ -40,6 +50,16 @@ end
     write_mathml(io, obj; pretty = false) -> Int
 
 Write the Strict Content MathML encoding of `obj` to `io`.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> io = IOBuffer();
+
+julia> write_mathml(io, OMObject(OMInteger(1)))
+81
+```
 """
 function write_mathml(io::IO, obj::Union{OMObject, OMNode}; pretty::Bool = false)
     document = obj isa OMObject ? obj : OMObject(obj)

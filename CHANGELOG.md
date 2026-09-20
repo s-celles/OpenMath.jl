@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [`docs/src/compat.md`](https://s-celles.github.io/OpenMath.jl/dev/compat/) —
+  the versioning contract. The public API is exactly `names(OpenMath)`; anything
+  else is internal, including documented internals. It states what a `0.x` minor
+  may break, which two changes are treated as breaking although a case could be
+  made otherwise, which two are not, and the four conditions for a `1.0.0`.
+- **A runnable example on every exported symbol.** `checkdocs = :exports` was
+  already blocking and already green — all 81 had a docstring, and 24 had an
+  example. The other 57 now do, and a gate asserts it stays that way.
+
 - A **performance budget**, in two halves because the two numbers fail
   differently. Allocation counts are deterministic within a Julia version, so
   they gate: `test/quality/performance.jl` fails on a rise beyond ±10 % of

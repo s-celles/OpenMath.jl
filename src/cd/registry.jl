@@ -16,6 +16,14 @@ identifies a dictionary, since the same name under a different base is a
 different dictionary (standard §2.1.4).
 
 Populate it with [`register!`](@ref) or [`load_cd_directory`](@ref).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OpenMath.isempty_registry(CDRegistry())
+true
+```
 """
 struct CDRegistry
     dictionaries::Dict{Tuple{String, String}, ContentDictionary}
@@ -67,9 +75,35 @@ end
     load_cd_directory!(reg, dir) -> CDRegistry
 
 Parse every `.ocd` file in `dir` into a registry.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> OpenMath.isempty_registry(load_cd_directory(mktempdir()))   # no .ocd there
+true
+```
 """
 load_cd_directory(dir::AbstractString) = load_cd_directory!(CDRegistry(), dir)
 
+"""
+    load_cd_directory!(reg, dir) -> CDRegistry
+
+Parse every `.ocd` file in `dir` into `reg`, which is returned.
+
+The mutating form is the one to use when several directories make up one
+registry — the official set, the contributed one and a private one, say.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> reg = CDRegistry();
+
+julia> load_cd_directory!(reg, mktempdir()) === reg
+true
+```
+"""
 function load_cd_directory!(reg::CDRegistry, dir::AbstractString)
     isdir(dir) || throw(ArgumentError("not a directory: $(repr(String(dir)))"))
     for f in sort!(readdir(dir; join = true))
@@ -83,6 +117,16 @@ end
     load_sts_directory!(reg, dir; cdbase = CD_BASE) -> CDRegistry
 
 Parse every `.sts` file in `dir` and attach the signatures to `reg`.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> reg = CDRegistry();
+
+julia> load_sts_directory!(reg, mktempdir()) === reg
+true
+```
 """
 function load_sts_directory!(reg::CDRegistry, dir::AbstractString;
         cdbase::AbstractString = CD_BASE)
@@ -128,6 +172,14 @@ end
     describe(reg, symbol) -> String
 
 The prose description of `symbol`, or `""` when it is not defined here.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> describe(CDRegistry(), OMS"arith1#plus")   # nothing is loaded
+""
+```
 """
 function describe(reg::CDRegistry, s::OMSymbol)
     d = lookup(reg, s)
@@ -139,6 +191,14 @@ end
 
 The Small Type System signature of `symbol`, itself an OpenMath object, or
 `nothing` when none is loaded.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> signature(CDRegistry(), OMS"arith1#plus") === nothing
+true
+```
 """
 function signature(reg::CDRegistry, s::OMSymbol)
     sts = get(reg.signatures, (_effective_base(s), s.cd), nothing)
@@ -151,6 +211,14 @@ end
 
 How many arguments `symbol` takes, or `nothing` when it is n-ary or has no
 signature. See [`sts_arity`](@ref).
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> arity(CDRegistry(), OMS"arith1#plus") === nothing
+true
+```
 """
 function arity(reg::CDRegistry, s::OMSymbol)
     sig = signature(reg, s)

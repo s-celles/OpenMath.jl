@@ -49,6 +49,16 @@ end
     write_json(io, obj; pretty = false) -> Int
 
 Write the OpenMath JSON encoding of `obj` to `io`. Returns the byte count.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> io = IOBuffer();
+
+julia> write_json(io, OMObject(OMInteger(1)))
+69
+```
 """
 function write_json(io::IO, obj::Union{OMObject, OMNode}; pretty::Bool = false)
     document = obj isa OMObject ? obj : OMObject(obj)

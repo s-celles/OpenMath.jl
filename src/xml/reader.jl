@@ -102,6 +102,16 @@ Decode the OpenMath XML encoding (standard §3.1).
 
 `mode` is `:strict` (reject any deviation), `:lenient` (accept documented
 deviations and record them in `result.warnings`) or `:recover`.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> ns = "xmlns=\\"http://www.openmath.org/OpenMath\\"";
+
+julia> read_xml("<OMOBJ " * ns * " version=\\"2.0\\"><OMI>1</OMI></OMOBJ>")
+OMOBJ(OMI(1))
+```
 """
 function read_xml(src::AbstractString; mode::Symbol = :strict)
     mode in (:strict, :lenient, :recover) ||

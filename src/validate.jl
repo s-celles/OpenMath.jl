@@ -184,5 +184,16 @@ _cdbase_of(::OMOrForeign) = nothing
     isvalid_openmath(x) -> Bool
 
 Whether [`validate`](@ref) finds no problem with `x`.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> isvalid_openmath(OMApplication(OMS"arith1#plus", [OMInteger(1)]))
+true
+
+julia> isvalid_openmath(OMReference("#nowhere"))   # nothing carries that id
+false
+```
 """
 isvalid_openmath(x::Union{OMOrForeign, OMObject}) = isempty(validate(x))

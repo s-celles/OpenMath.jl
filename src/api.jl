@@ -179,6 +179,14 @@ end
     omxml"…"
 
 An OpenMath XML document literal, decoded at macro-expansion time.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> omxml"<OMOBJ xmlns=\\"http://www.openmath.org/OpenMath\\" version=\\"2.0\\"><OMI>1</OMI></OMOBJ>"
+OMOBJ(OMI(1))
+```
 """
 macro omxml_str(src)
     return _literal(src, :xml)
@@ -188,6 +196,14 @@ end
     omjson"…"
 
 An OpenMath JSON document literal, decoded at macro-expansion time.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> omjson"{\\"kind\\":\\"OMOBJ\\",\\"object\\":{\\"kind\\":\\"OMI\\",\\"integer\\":1}}"
+OMOBJ(OMI(1))
+```
 """
 macro omjson_str(src)
     return _literal(src, :json)

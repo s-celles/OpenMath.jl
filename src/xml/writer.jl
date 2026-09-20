@@ -59,6 +59,16 @@ end
 
 Write the OpenMath XML encoding of `obj` to `io`. Returns the number of bytes
 written.
+
+# Examples
+```jldoctest
+julia> using OpenMath
+
+julia> io = IOBuffer();
+
+julia> write_xml(io, OMObject(OMInteger(1)))
+82
+```
 """
 function write_xml(io::IO, obj::Union{OMObject, OMNode}; pretty::Bool = false)
     document = obj isa OMObject ? obj : OMObject(obj)
