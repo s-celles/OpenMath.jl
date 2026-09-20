@@ -15,11 +15,19 @@
 #    a four-byte length and allocating four gigabytes is one `check_limit`
 #    (REQ-BIN-006).
 #
-#  * **No leniency.** The XML reader has `:lenient` and `:recover` modes because
-#    a malformed element can be skipped and the rest of the document still means
-#    something. A byte format has no such structure: one wrong length and every
-#    subsequent byte is misread, so `mode` is accepted for interface uniformity
-#    and every deviation is an error.
+#  * **No leniency, and no *subtree* recovery.** The XML reader can skip a
+#    malformed element and have the rest of the document still mean something. A
+#    byte format has no such structure: one wrong length and every subsequent
+#    byte is misread, so there is nothing to resynchronise on and `:lenient` has
+#    no dialect to accept.
+#
+#    `:recover` is different, and this reader used to conflate the two. Its
+#    contract is "never raises" (spec §5.3), and a *whole-document* error object
+#    honours that without pretending to resynchronise anything: the document is
+#    unreadable, and here is why. Only the subtree half is impossible. Found by
+#    the fuzz campaign on its first input, once `:recover` was added to the modes
+#    it exercises — the mode had shipped two commits earlier and nothing had ever
+#    fed it a malformed byte stream.
 #
 # The traversal is an explicit stack, never recursion, for the same reason as the
 # other readers: `StackOverflowError` cannot be caught reliably (REQ-SEC-002).
@@ -159,9 +167,11 @@ Given an `IO`, exactly one object is consumed and the stream is left positioned
 after its end tag, so a stream carrying several objects can be read one at a
 time. Given a byte vector, the whole vector must be one document.
 
-`mode` is accepted for uniformity with the other readers and is not used: a
-misread byte desynchronises everything after it, so this encoding has no lenient
-dialect to recover into.
+`:lenient` is accepted for uniformity and does nothing: a misread byte
+desynchronises everything after it, so this encoding has no lenient dialect to
+accept. `:recover` returns a document carrying a `moreerrors#encodingError`
+rather than raising — the whole document, since there is nothing to
+resynchronise on part-way through.
 
 # Examples
 ```jldoctest
@@ -172,14 +182,20 @@ OMI(16)
 ```
 """
 function read_binary(data::AbstractVector{UInt8}; mode::Symbol = :strict)
-    s = _VecSource(Vector{UInt8}(data), 1)
-    object = _read_document!(s, mode)
-    s.pos <= length(s.data) && throw(OpenMathParseError(
-        "trailing bytes after the end object tag"; offset = s.pos))
-    return object
+    return with_recovery(mode) do
+        s = _VecSource(Vector{UInt8}(data), 1)
+        object = _read_document!(s, mode)
+        s.pos <= length(s.data) && throw(OpenMathParseError(
+            "trailing bytes after the end object tag"; offset = s.pos))
+        object
+    end
 end
 
-read_binary(io::IO; mode::Symbol = :strict) = _read_document!(_IOSource(io, 1), mode)
+function read_binary(io::IO; mode::Symbol = :strict)
+    return with_recovery(mode) do
+        _read_document!(_IOSource(io, 1), mode)
+    end
+end
 
 function read_binary(src::AbstractString; mode::Symbol = :strict)
     read_binary(Vector{UInt8}(codeunits(String(src))); mode = mode)

@@ -5,9 +5,15 @@ name: Fuzz
 # is entirely self-contained — no network, no foreign toolchain — which is why it
 # belongs in CI at all. The dividing line is external dependency, not cost.
 
+# Phase 8's exit criterion is 24 hours clean before the freeze. A GitHub job is
+# capped at six, so that is accumulated rather than run in one piece: nightly at
+# 30 minutes, plus a weekly long run of 5 h 30. Seven nights and one long run is
+# about nine hours a week, so the criterion is met after roughly three weeks of
+# green — which is why it is scheduled now rather than at the freeze.
 on:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 3 * * *"        # nightly, 30 minutes
+    - cron: "0 1 * * 6"        # Saturday, the long run
   workflow_dispatch:
     inputs:
       minutes:
@@ -25,7 +31,7 @@ permissions:
 jobs:
   fuzz:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v5
       - uses: julia-actions/setup-julia@v2
@@ -38,7 +44,8 @@ jobs:
         id: fuzz
         run: |
           julia --project=test -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-          julia --project=test test/harness/fuzz.jl --minutes "${{ github.event.inputs.minutes || 30 }}"
+          julia --project=test test/harness/fuzz.jl \
+            --minutes "${{ github.event.inputs.minutes || (github.event.schedule == '0 1 * * 6' && 330 || 30) }}"
 
       - name: Upload any new counterexamples
         if: failure()

@@ -79,6 +79,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The binary reader raised in `:recover`.** Its "no leniency" reasoning is
+  sound for recovering a *subtree* — one wrong length and every later byte is
+  misread — and had been stretched to cover `:recover`, whose contract is only
+  that it does not raise. It now returns a document carrying a
+  `moreerrors#encodingError` for the whole input.
+- **`OpenMath.parse` chose its reader outside recovery.** `sniff_format` raises
+  on an empty input, before any reader is picked, so `:recover` raised on the
+  emptiest document there is. A bad `format` still raises: that is the caller's
+  mistake, not the document's.
+- The fuzzer filed a finding under `:auto` as `object.xml` whatever it actually
+  was, giving the conformance driver a fixture that was not what its name said.
+  It uses the sniffed encoding.
+
 - The XML and MathML readers allocated a fresh `String` for every element and
   attribute name, nearly all of which are compared against a constant and then
   dropped — an allocation profile put it at the top of the reader. That set is

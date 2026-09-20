@@ -31,6 +31,17 @@ OMA(OMS(arith1#plus), OMI(1), OMV(x))
 """
 function parse(src::AbstractString; format::Symbol = :auto, mode::Symbol = :strict,
         strict::Bool = true)
+    # Recovery has to cover the *choice* of reader, not only the reading.
+    # `sniff_format` raises on an empty input and the readers never see it, so
+    # `:recover` raised on the emptiest document there is. An `ArgumentError`
+    # from a bad `format` is a caller's mistake rather than a document's and
+    # `with_recovery` passes it through, which is the right side of that line.
+    return with_recovery(mode) do
+        _parse(src, format, mode, strict)
+    end
+end
+
+function _parse(src::AbstractString, format::Symbol, mode::Symbol, strict::Bool)
     fmt = format === :auto ? sniff_format(src) : format
     fmt === :mathml && return read_mathml(src; mode = mode, strict = strict)
     # Both XML encodings start with '<', so sniffing cannot separate them; the
@@ -53,9 +64,11 @@ text, so it has this entry point as well as the string one.
 """
 function parse(src::AbstractVector{UInt8}; format::Symbol = :auto,
         mode::Symbol = :strict)
-    fmt = format === :auto ? sniff_format(src) : format
-    fmt === :binary && return read_binary(src; mode = mode)
-    return parse(String(copy(Vector{UInt8}(src))); format = fmt, mode = mode)
+    return with_recovery(mode) do
+        fmt = format === :auto ? sniff_format(src) : format
+        fmt === :binary ? read_binary(src; mode = mode) :
+        parse(String(copy(Vector{UInt8}(src))); format = fmt, mode = mode)
+    end
 end
 
 """

@@ -108,3 +108,49 @@ end
     @test OpenMath.parse(src; format = :xml, mode = :recover) ==
           OpenMath.parse(src; format = :xml)
 end
+
+@testitem "recover: the binary encoding recovers per document, not per subtree" tags = [
+    :unit, :recover] begin
+    using OpenMath
+    # A byte format has nothing to resynchronise on: one wrong length and every
+    # subsequent byte is misread, so there is no way to skip a bad subtree and
+    # keep the rest. That argument is sound, and this reader used it to raise in
+    # `:recover` too — conflating "cannot recover a subtree" with "cannot
+    # recover". `:recover` promises only that it does not raise, and a
+    # whole-document error object honours that without pretending otherwise.
+    #
+    # Found by the fuzz campaign on its first input, once `:recover` was added to
+    # the modes it exercises. The mode had shipped two commits earlier and
+    # nothing had ever fed it a malformed byte stream.
+    truncated = hex2bytes("18091a687474703a2f2f7777772e6f70656e6d6174682e6f72672f636410080902")
+
+    @test_throws OpenMath.OpenMathParseError OpenMath.parse(truncated; format = :binary)
+    obj = OpenMath.parse(truncated; format = :binary, mode = :recover)
+    @test obj isa OMObject
+    @test obj.object isa OMError
+    @test obj.object.head == OMSymbol("moreerrors", "encodingError")
+    @test !isempty(obj.warnings)
+
+    # A clean binary document is untouched.
+    good = OpenMath.binary(OMObject(OMS"arith1#plus"(OMInteger(1), OMInteger(2))))
+    @test OpenMath.parse(good; format = :binary, mode = :recover) ==
+          OpenMath.parse(good; format = :binary)
+end
+
+@testitem "recover: choosing the reader is covered too" tags = [:unit, :recover] begin
+    using OpenMath
+    # `sniff_format` raises on an empty input, before any reader is chosen, so
+    # `:recover` raised on the emptiest document there is. Recovery has to cover
+    # the *choice* of reader, not only the reading. Found by the fuzz campaign.
+    for src in ("", " ", "\0", "not a document at all")
+        obj = OpenMath.parse(src; mode = :recover)
+        @test "$(repr(first(src, 8))): recovered" ==
+              "$(repr(first(src, 8))): $(obj isa OMObject ? "recovered" : "did not")"
+    end
+    @test OpenMath.parse(UInt8[]; mode = :recover) isa OMObject
+
+    # A bad `format` is the caller's mistake, not the document's, and still
+    # raises: recovering from it would hide a typo in the calling code.
+    @test_throws ArgumentError OpenMath.parse("<OMOBJ/>"; format = :frobnicate,
+        mode = :recover)
+end

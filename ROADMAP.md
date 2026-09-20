@@ -807,7 +807,39 @@ project.
       statistic reported the opposite. `benchmark/workload.jl` is included by the
       harness *and* by the AirspeedVelocity suite, so the two cannot drift into
       measuring different documents.
-- [ ] Extended fuzz campaign (24 h) across all three encodings before the freeze.
+- [ ] Extended fuzz campaign (24 h) across all **four** encodings before the
+      freeze. *(Three was written when there were three. There are four.)*
+
+      **Not yet met, and deliberately not ticked.** 24 h has not been run. What
+      has: the campaign was corrected and measured on 2026-09-19, and is now
+      scheduled to accumulate — nightly at 30 min plus a weekly 5 h 30 run, a
+      GitHub job being capped at six hours, so roughly nine hours a week and the
+      criterion met after about three weeks of green.
+
+      **The correction is the point.** `:recover` was not fuzzed at all: the
+      loop ran `(:strict, :lenient)`, and `:recover` shipped two commits earlier
+      making the *strongest* of the three promises — never raises but for a
+      resource limit. Adding it found two product defects in the first minute
+      and one defect in the invariant itself:
+
+      * The **binary reader raised in `:recover`**. Its "no leniency" argument is
+        sound for *subtree* recovery — one wrong length and every later byte is
+        misread, so there is nothing to resynchronise on — and it had been
+        stretched to cover `:recover`, whose contract is only that it does not
+        raise. A whole-document error object honours that. Found on the first
+        input.
+      * **Choosing the reader was outside recovery.** `sniff_format` raises on an
+        empty input, before any reader is picked, so `:recover` raised on the
+        emptiest document there is.
+      * And the **invariant was too strong**: it demanded every recovered object
+        be writable, which an `OMFOREIGN` holding verbatim non-XML legitimately
+        is not. That is the writer's documented answer, not an escape. Recorded
+        rather than quietly loosened.
+
+      Throughput, so the 24 h figure has a measured base rather than a hope:
+      **2 318 629 inputs in 8 minutes**, about 4 800 a second, across four
+      encodings and three modes — so a 24 h campaign is of the order of 400
+      million inputs. The last 8-minute run was clean.
 - [x] **E5** — `test/unit/cross_encoding.jl`, a home for properties every encoding
       must share. Two defects survived this session in the same blind spot: the
       conformance driver checks the encodings *agree about objects*, never that

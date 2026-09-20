@@ -25,6 +25,10 @@ const ROOT = normpath(joinpath(@__DIR__, "..", ".."))
 include(joinpath(@__DIR__, "corpus.jl"))
 using .Corpus
 
+# All three modes. `:recover` was missing, which is the same shape as every
+# other gap this project has found: a check green on what it could not reach.
+const MODES = (:strict, :lenient, :recover)
+
 struct Finding
     input::String
     format::Symbol
@@ -33,8 +37,21 @@ struct Finding
 end
 
 # Where a finding is written when it is kept, per encoding.
+# `:auto` is not an encoding, so a finding under it cannot be filed as one:
+# writing binary bytes into `object.xml` gives the conformance driver a fixture
+# that is not what its name says. The sniffed format is used instead.
 const FINDING_FILE = Dict(:xml => "object.xml", :json => "object.json",
-    :mathml => "object.mml", :binary => "object.bin", :auto => "object.xml")
+    :mathml => "object.mml", :binary => "object.bin")
+
+function finding_file(src::AbstractString, format::Symbol)
+    format === :auto || return FINDING_FILE[format]
+    sniffed = try
+        OpenMath.sniff_format(src)
+    catch
+        :xml
+    end
+    return get(FINDING_FILE, sniffed, "object.xml")
+end
 
 # --- mutations ----------------------------------------------------------------
 #
@@ -87,14 +104,46 @@ end
 
 # --- the run ------------------------------------------------------------------
 
+# The invariant depends on the mode, because the modes promise different things.
+#
+#   :strict, :lenient — nothing outside the `OpenMathError` family escapes.
+#   :recover          — *nothing* escapes but a resource limit (spec §5.3), and
+#                       what comes back must be a real document, not a half-built
+#                       one, so it has to survive being written out again.
+#
+# `:recover` was not fuzzed at all until this was written, though it makes the
+# strongest of the three promises and shipped two commits before the campaign.
 function try_parse(src::AbstractString, format::Symbol, mode::Symbol)
-    try
+    obj = try
         OpenMath.parse(src; format = format, mode = mode)
-        return nothing
     catch err
+        if mode === :recover
+            err isa OpenMath.OpenMathLimitError && return nothing
+            return "raised in :recover mode: " * sprint(showerror, err)
+        end
         err isa OpenMath.OpenMathError && return nothing
         return sprint(showerror, err)
     end
+    mode === :recover || return nothing
+    obj isa OMObject || return ":recover returned a $(typeof(obj)), not an OMObject"
+    try
+        OpenMath.xml(obj)
+    catch err
+        # An `OpenMathConversionError` from the *writer* is not an escape. It is
+        # the documented answer to an object with no representation in the target
+        # — an `OMFOREIGN` whose verbatim content is not well-formed XML, which a
+        # recovered document can perfectly well contain, because the bytes came
+        # from the document and the reader is required to keep them verbatim.
+        #
+        # This check first demanded that every recovered object be writable, and
+        # the campaign produced exactly that case within three minutes. The
+        # invariant was wrong, not the product; recorded rather than quietly
+        # loosened.
+        err isa OpenMath.OpenMathConversionError && return nothing
+        return ":recover produced an object that cannot be written: " *
+               sprint(showerror, err)
+    end
+    return nothing
 end
 
 function main(argv)
@@ -145,7 +194,7 @@ function main(argv)
             seed_src, isbinary = rand(rng, seeds)
             src = mutate(rng, seed_src, isbinary)
             formats = isbinary ? (:auto, :binary) : (:auto, :xml, :json, :mathml)
-            for format in formats, mode in (:strict, :lenient)
+            for format in formats, mode in MODES
 
                 msg = try_parse(src, format, mode)
                 msg === nothing && continue
@@ -173,7 +222,7 @@ function main(argv)
     dir = joinpath(ROOT, "test", "corpus", "regression",
         "fuzz-" * string(hash(f.input); base = 16, pad = 16)[1:8])
     mkpath(dir)
-    write(joinpath(dir, get(FINDING_FILE, f.format, "object.xml")), f.input)
+    write(joinpath(dir, finding_file(f.input, f.format)), f.input)
     write(joinpath(dir, "meta.toml"),
         "source = \"fuzz, seed $seed\"\nprovenance = \"shrunk-counterexample\"\n" *
         "tags = [\"invalid\", \"fuzz\"]\nstrict = true\n" *
