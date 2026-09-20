@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing has been released yet. `v0.0.1` appears in `Project.toml` and was never
-tagged, and this file used to carry a `[0.0.1]` section linking to a GitHub
-release that does not exist — so everything below is unreleased, and says so.
-The first release is cut in Phase 9 of `ROADMAP.md`.
+Everything below is slated for **0.1.0**, which `Project.toml` now carries. It
+stays under `[Unreleased]` because **nothing has been released**: there is no
+tag, no GitHub release and no registry entry, and a heading saying otherwise
+would be the defect this section replaced. `v0.0.1` was likewise never tagged,
+though this file used to carry a `[0.0.1]` section linking to a release that
+does not exist.
+
+0.1.0 rather than the 0.9.0 the roadmap's phase numbering implied: `compat.md`
+lists four conditions for a `1.0.0` and one of them — at least one real
+dependant — cannot be met by working harder, so a number implying near-maturity
+would contradict this package's own compatibility document. It is also the
+version most new packages register at, and one the registry accepts without
+manual review.
 
 ### Added
 

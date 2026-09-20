@@ -1,7 +1,7 @@
 name = "OpenMath"
 uuid = "a3e62119-7808-4860-a560-991581b033be"
 authors = ["Sébastien Celles <s.celles@gmail.com> and contributors"]
-version = "0.0.1"
+version = "0.1.0"
 
 [deps]
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"

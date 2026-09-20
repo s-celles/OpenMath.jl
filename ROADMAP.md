@@ -908,9 +908,30 @@ under budget on 1.10 and 1.13; 24 h fuzz clean.
       `git tag`**, so a section or a link naming a release that was never cut
       fails. Proved to fire.
 - [ ] Registration in the General registry under MIT (decision **D6**).
+      **Deliberately not done**, on the author's instruction, 2026-09-20. The
+      package is registrable — name free in General, `[compat]` on every
+      dependency including the weak one and on `julia`, MIT `LICENSE.md`, public
+      repository — and is not being registered. Nothing about that is blocked;
+      it is a decision, and registration is the one step in this roadmap that
+      cannot be undone.
 - [ ] Announce on JuliaLang Discourse; notify the OpenMath Society and the `openmath`
       crate author — a Julia implementation with binary + `OMR` support is worth
-      cross-linking from openmath.org's implementation list.
+      cross-linking from openmath.org's implementation list. **Not done**, same
+      instruction.
+
+**Version, decided 2026-09-20: `0.1.0`, not `0.9.0`.** The roadmap's `0.9.0`
+came from numbering phases, not from judging maturity, and two things argue
+against it. `docs/src/compat.md` lists four conditions for a `1.0.0`, and one of
+them — at least one real dependant — cannot be met by working harder, so a
+number implying near-maturity would contradict the package's own compatibility
+document. And it is the version the registry accepts without manual review:
+of 12 447 packages in General, 61 % first register at `0.1.0` and 75.5 % at one
+of `0.1.0`, `1.0.0` or `0.0.1`. 44 did first register at `0.9.0`, so it is
+possible — measured rather than recalled — just not the default path.
+
+`Project.toml` carries `0.1.0`; `CHANGELOG.md` keeps everything under
+`[Unreleased]`, because no tag, release or registry entry exists and a heading
+saying otherwise is exactly the defect the previous commit removed.
 
 **Exit criteria** — registered, docs published with the live conformance report, CI
 green on Julia 1.10 and 1.13 across all three operating systems. A `1.0.0` is
