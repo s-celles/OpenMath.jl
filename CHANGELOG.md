@@ -490,6 +490,11 @@ manual review.
 
 ### Fixed
 
+- The README announced "early development (v0.0.1)" and "the XML, JSON and binary
+  encodings are next" for as long as all four had been implemented, documented
+  and under conformance test. A gate now resolves every `vX.Y.Z` in it against
+  `Project.toml`.
+
 - This file announced a `0.0.1` release, dated it, and linked to a GitHub release
   tag — and **`v0.0.1` was never tagged**; no release has ever been cut. It also
   described that section as "Phase 0 and Phase 1" while listing Phase 3 work, and

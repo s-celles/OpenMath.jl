@@ -383,3 +383,26 @@ end
         end
     end
 end
+
+@testitem "the README does not claim a version the package is not" tags = [:quality] begin
+    using OpenMath, TOML
+    # The README said "early development (v0.0.1)" and "the XML, JSON and binary
+    # encodings are next" for as long as all four had been implemented. Prose
+    # about the state of the package rots exactly as fast as the package moves,
+    # and nothing was reading it.
+    root = pkgdir(OpenMath)
+    version = TOML.parsefile(joinpath(root, "Project.toml"))["version"]
+    readme = read(joinpath(root, "README.md"), String)
+
+    stale = [v
+             for v in unique(m.match for m in eachmatch(r"v\d+\.\d+\.\d+", readme))
+             if v != "v" * version]
+    isempty(stale) ||
+        println("  README names ", join(stale, ", "), " but Project.toml says ", version)
+    @test isempty(stale)
+    # Asserted as a short string rather than `occursin(...)`, which on a failure
+    # prints the whole README into the test log.
+    @test "README states v$(version)" ==
+          (occursin("v" * version, readme) ? "README states v$(version)" :
+           "README names no version at all")
+end

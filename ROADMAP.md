@@ -23,24 +23,36 @@ Companion to `spec.md`. Section references (§) point into that document.
 
 **Version ladder**
 
-| Version  | Phase | Theme                                   |
-|----------|-------|-----------------------------------------|
-| `0.0.1`  | 0     | Scaffolding + test harness (no features)|
-| `0.1.0`  | 1     | Object model                            |
-| `0.2.0`  | 2     | XML encoding                            |
-| `0.3.0`  | 3     | JSON encoding                           |
-| `0.4.0`  | 4     | Binary encoding + structure sharing     |
-| `0.5.0`  | 5     | Content Dictionaries                    |
-| `0.6.0`  | 6     | Symbolics.jl phrasebook                 |
-| `0.7.0`  | 7     | Strict Content MathML encoding          |
-| `0.8.0`  | 8     | Performance, latency, hardening         |
-| `0.9.0`  | 9     | API stabilisation + registration        |
+These are **development milestones, not releases.** Renumbered 2026-09-20: the
+table used to run `0.0.1`, `0.1.0`, `0.2.0` … `0.9.0`, one minor per phase, which
+spent the whole `0.x` minor space on internal checkpoints — and not one of them
+was ever tagged, released or registered. A minor version is a thing users
+install; a phase is a thing this file tracks. They are now `0.0.x`, which leaves
+`0.1.0` onwards to mean what SemVer says it means.
 
-No `1.x` milestone is planned yet. Under Semantic Versioning a `0.x` series says
-the public API may still change in a minor release, which is the honest signal
-while the encodings and the phrasebooks are still settling. A `1.0.0` is declared
-when the API has held still across a few releases and downstream users exist —
-not on a date.
+| Milestone | Phase | Theme                                   |
+|-----------|-------|-----------------------------------------|
+| `0.0.1`   | 0     | Scaffolding + test harness (no features)|
+| `0.0.2`   | 1     | Object model                            |
+| `0.0.3`   | 2     | XML encoding                            |
+| `0.0.4`   | 3     | JSON encoding                           |
+| `0.0.5`   | 4     | Binary encoding + structure sharing     |
+| `0.0.6`   | 5     | Content Dictionaries                    |
+| `0.0.7`   | 6     | Symbolics.jl phrasebook                 |
+| `0.0.8`   | 7     | Strict Content MathML encoding          |
+| `0.0.9`   | 8     | Performance, latency, hardening         |
+| `0.0.10`  | 9     | API stabilisation                       |
+
+**The version is `0.1.0`**, in `Project.toml`, and is the *first release* rather
+than a phase label — the phases above all landed before it, unreleased. Nothing
+is tagged or registered yet, so `CHANGELOG.md` keeps it all under
+`[Unreleased]`; see the Phase 9 note for why `0.1.0` and not `0.9.0`.
+
+No `1.x` milestone is planned. Under Semantic Versioning a `0.x` series says the
+public API may still change in a minor release, which is the honest signal while
+the encodings and the phrasebooks are still settling. `docs/src/compat.md` states
+the four conditions for a `1.0.0`; one of them — at least one real dependant —
+cannot be met by working harder.
 
 ---
 
@@ -161,7 +173,7 @@ bug), `just quality` and `just docs` are green, CI is green on 1.10 and 1.13.
 
 ---
 
-## Phase 1 — Object model `v0.1.0`
+## Phase 1 — Object model `v0.0.2`
 
 - [x] `src/types.jl` — the twelve node types, `OMObject`, `OMAttributePair`,
       `OMBoundVariable`, `OMOrForeign` (§2.1). Freeze decision **D2** (`OMATTR` as a
@@ -188,7 +200,7 @@ coverage ≥ 90 % on `src/`.
 
 ---
 
-## Phase 2 — XML encoding `v0.2.0`
+## Phase 2 — XML encoding `v0.0.3`
 
 - [x] Resolve decision **D1**. Settled in favour of a purpose-built pull tokenizer
       rather than either candidate; two **Must** requirements decide it before
@@ -242,7 +254,7 @@ withdrawn; see Phase 2.)
 
 ---
 
-## Phase 3 — JSON encoding `v0.3.0`
+## Phase 3 — JSON encoding `v0.0.4`
 
 - [x] Resolve decision **D3**. Settled in favour of a purpose-built scanner and
       **no dependency at all**: `integer` is a JSON number and OpenMath integers
@@ -272,7 +284,7 @@ oracle byte-identical after canonicalization; coverage ≥ 95 % on `src/json/`.
 
 ---
 
-## Phase 4 — Binary encoding and structure sharing `v0.4.0`
+## Phase 4 — Binary encoding and structure sharing `v0.0.5`
 
 This is the phase where `OpenMath.jl` overtakes the Rust reference implementation —
 both items are declared TODO upstream.
@@ -425,7 +437,7 @@ existed and was never looked for. Worth a phase so the lesson is not filed under
 
 ---
 
-## Phase 5 — Content Dictionaries `v0.5.0`
+## Phase 5 — Content Dictionaries `v0.0.6`
 
 - [x] `src/cd/parser.jl` — the CD XML format and the STS signature format, both
       built on our own tokenizer, with the embedded `<OMOBJ>` documents handed to
@@ -494,7 +506,7 @@ dictionaries' own examples.
 
 ---
 
-## Phase 6 — Symbolics.jl phrasebook `v0.6.0`
+## Phase 6 — Symbolics.jl phrasebook `v0.0.7`
 
 - [x] **H2.5 first**: the oracle survey, in `docs/src/design/phrasebook.md`,
       written before any code. It ranked MathML.jl primary (same target language,
@@ -550,7 +562,7 @@ vocabulary shrinks. An exit criterion that is not executable is a wish.
 
 ---
 
-## Phase 7 — Strict Content MathML `v0.7.0`
+## Phase 7 — Strict Content MathML `v0.0.8`
 
 Corrected scope, 2026-09-17. The standard endorses **four** encodings, not three:
 "two encodings in XML (an innate one described here, and one in Strict Content
@@ -653,7 +665,7 @@ has a test proving the error is raised rather than data lost.
 
 ---
 
-## Phase 7b — Popcorn notation `v0.7.x`, a **Could**
+## Phase 7b — Popcorn notation `v0.0.8.x`, a **Could**
 
 Popcorn is a compact linear syntax for OpenMath — `arith1.plus(1, $x)` where the
 XML takes five elements. It appears **nowhere in the standard**: it is an external
@@ -694,7 +706,7 @@ project.
 
 ---
 
-## Phase 8 — Performance, latency, hardening `v0.8.0`
+## Phase 8 — Performance, latency, hardening `v0.0.9`
 
 - [x] **Measure first.** `just bench` records throughput, allocations per node and
       time to first parse; `just bench --save` writes `test/harness/baseline.toml`.
@@ -860,7 +872,7 @@ under budget on 1.10 and 1.13; 24 h fuzz clean.
 
 ---
 
-## Phase 9 — API stabilisation `v0.9.0`
+## Phase 9 — API stabilisation `v0.0.10`
 
 - [x] Public API settled; everything not exported is explicitly documented as
       internal. **Done 2026-09-20.** The public API is exactly `names(OpenMath)`,
@@ -919,9 +931,10 @@ under budget on 1.10 and 1.13; 24 h fuzz clean.
       cross-linking from openmath.org's implementation list. **Not done**, same
       instruction.
 
-**Version, decided 2026-09-20: `0.1.0`, not `0.9.0`.** The roadmap's `0.9.0`
-came from numbering phases, not from judging maturity, and two things argue
-against it. `docs/src/compat.md` lists four conditions for a `1.0.0`, and one of
+**Version, decided 2026-09-20: `0.1.0`.** This file used to label Phase 9
+`v0.9.0`, which came from numbering phases rather than judging maturity — the
+phase labels are now `0.0.x` for that reason. Two things argued against
+releasing as `0.9.0`. `docs/src/compat.md` lists four conditions for a `1.0.0`, and one of
 them — at least one real dependant — cannot be met by working harder, so a
 number implying near-maturity would contradict the package's own compatibility
 document. And it is the version the registry accepts without manual review:

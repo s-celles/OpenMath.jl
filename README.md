@@ -12,9 +12,15 @@ symbols such as `arith1#plus` or `calculus1#diff`. It is the interchange format
 behind OMDoc, MMT and SCSCP, and it has a normative correspondence with W3C
 Content MathML.
 
-> **Status: early development (v0.0.1).** The object model, validation and the
-> normalisation passes are implemented and tested. The XML, JSON and binary
-> encodings are next; see [`ROADMAP.md`](ROADMAP.md).
+> **Status: v0.1.0, unreleased.** All four encodings the standard endorses are
+> implemented and tested — XML (§3.1), binary (§3.2), JSON (§3.3) and Strict
+> Content MathML (MathML 4 §4.1.3) — along with the object model, validation, the
+> normalisation passes, Content Dictionaries and a `Symbolics.jl` phrasebook.
+>
+> Not registered in the General registry and not tagged, so install from the
+> repository. The API may change in any minor release while the series is `0.x`;
+> see [Compatibility](https://s-celles.github.io/OpenMath.jl/dev/compat/) and
+> [`ROADMAP.md`](ROADMAP.md).
 
 ## Installation
 
