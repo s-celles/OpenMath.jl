@@ -587,7 +587,8 @@ but it is why the cost has been paid once rather than twice.
   entity policy is being decided deliberately there, and whether this belongs
   behind a flag or in the default path is the maintainers' call.
 
-  Re-verified 2026-09-20 against v0.4.6 and `main` (`4315db22`). Two of the three
+  Re-verified 2026-09-20 against `XML.jl` v0.4.6 and `XML.jl` `main`
+  (`4315db22`). Two of the three
   entity behaviours this note once cited have moved: **#130 fixed internal-subset
   inclusion**, so `<!ENTITY e "X">` then `&e;` now yields `X` on `main`, and the
   external-subset case is #137's open policy question. Only the undeclared case
