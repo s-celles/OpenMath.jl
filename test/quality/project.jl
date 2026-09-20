@@ -300,3 +300,86 @@ end
         @test n in names(OpenMath)
     end
 end
+
+@testitem "the changelog is Keep a Changelog, and its links resolve" tags = [:quality] begin
+    using OpenMath
+    # CLAUDE.md requires Keep a Changelog. Nothing checked it, and it drifted
+    # three ways at once: `### Added` and `### Fixed` each appeared three times
+    # under one release, because every commit prepended its own; the `[0.0.1]`
+    # section described itself as "Phase 0 and Phase 1" while listing Phase 3
+    # work; and it linked to a GitHub release tag that was never created.
+    #
+    # The last one is the interesting one. A changelog that announces a release
+    # nobody can download is worse than one that says nothing, and no amount of
+    # care prevents it — only a check that resolves the claim against `git tag`.
+    root = pkgdir(OpenMath)
+    lines = readlines(joinpath(root, "CHANGELOG.md"))
+
+    ORDER = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
+    # Parsed inside a `let`: a bare `for` at the top level of a test item is soft
+    # scope, so assigning to an outer local from inside it is an error.
+    releases, seen, unknown = let releases = String[],
+        seen = Dict{String, Vector{String}}(), unknown = String[], current = ""
+
+        for line in lines
+            if startswith(line, "## [")
+                current = String(match(r"^## \[([^\]]+)\]", line).captures[1])
+                push!(releases, current)
+                seen[current] = String[]
+            elseif startswith(line, "### ")
+                name = String(strip(line[5:end]))
+                name in ORDER || push!(unknown, "$(current)/$(name)")
+                push!(seen[current], name)
+            end
+        end
+        (releases, seen, unknown)
+    end
+
+    isempty(unknown) || println("  unknown sections: ", join(unknown, ", "))
+    @test isempty(unknown)
+
+    @test !isempty(releases)
+    for r in releases
+        names = seen[r]
+        # One of each, and in the canonical order.
+        @test "$(r): no repeated section" ==
+              "$(r): $(length(names) == length(unique(names)) ? "no repeated section" :
+                       "repeats " * join(unique([n for n in names
+                                                 if count(==(n), names) > 1]), ", "))"
+        ranks = [findfirst(==(n), ORDER) for n in names if n in ORDER]
+        @test "$(r): sections in order" ==
+              "$(r): $(issorted(ranks) ? "sections in order" : "out of order: " *
+                       join(names, ", "))"
+    end
+
+    # A version section must correspond to a tag that exists. `Unreleased` is the
+    # one name that may not.
+    tags = try
+        Set(readlines(pipeline(`git -C $root tag`; stderr = devnull)))
+    catch
+        nothing
+    end
+    if tags === nothing
+        @test_skip "not a git checkout"
+    else
+        for r in releases
+            r == "Unreleased" && continue
+            @test "$(r): tagged" ==
+                  "$(r): $(("v" * r) in tags || r in tags ? "tagged" :
+                           "no such tag — the release was never cut")"
+        end
+    end
+
+    # And no link definition may point at a tag that does not exist either.
+    for line in lines
+        m = match(r"^\[([^\]]+)\]:\s*(\S+)", line)
+        m === nothing && continue
+        url = m.captures[2]
+        occursin("/releases/tag/", url) || occursin("/compare/", url) || continue
+        tags === nothing && continue
+        for t in eachmatch(r"v\d+\.\d+\.\d+", url)
+            @test "$(t.match): tagged" ==
+                  "$(t.match): $(t.match in tags ? "tagged" : "no such tag")"
+        end
+    end
+end

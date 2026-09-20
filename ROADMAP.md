@@ -887,7 +887,26 @@ under budget on 1.10 and 1.13; 24 h fuzz clean.
       `symbolics_phrasebook` lives in the extension, so a `jldoctest` would pull
       the SciML stack into every docs build to check one example; it is exercised
       by `test/unit/symbolics.jl` instead.
-- [ ] `CHANGELOG.md` complete from `0.0.1`.
+- [x] `CHANGELOG.md` complete from `0.0.1`. **Done 2026-09-20.** Complete it was —
+      every one of the fifteen commits is represented, checked one by one. What it
+      was not is *true*.
+
+      It carried a `[0.0.1] - 2026-09-17` section describing itself as "Phase 0
+      and Phase 1" while listing Phase 3 work, and linking to
+      `/releases/tag/v0.0.1`. **`v0.0.1` was never tagged and no release was ever
+      cut.** A changelog announcing a release nobody can download is worse than
+      one that says nothing. Everything is now under `[Unreleased]`, which says
+      so in as many words.
+
+      `### Added` and `### Fixed` each appeared three times under one release,
+      because every commit prepended its own — mine included. Consolidated into
+      one of each in Keep a Changelog's order; 123 bullets before, 123 after.
+
+      And the rule is executable now. `test/quality/project.jl` checks the
+      section names, that each appears once per release and in order, and — the
+      one that matters — **resolves every version and every link against
+      `git tag`**, so a section or a link naming a release that was never cut
+      fails. Proved to fire.
 - [ ] Registration in the General registry under MIT (decision **D6**).
 - [ ] Announce on JuliaLang Discourse; notify the OpenMath Society and the `openmath`
       crate author — a Julia implementation with binary + `OMR` support is worth

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Nothing has been released yet. `v0.0.1` appears in `Project.toml` and was never
+tagged, and this file used to carry a `[0.0.1]` section linking to a GitHub
+release that does not exist — so everything below is unreleased, and says so.
+The first release is cut in Phase 9 of `ROADMAP.md`.
+
 ### Added
 
 - [`docs/src/compat.md`](https://s-celles.github.io/OpenMath.jl/dev/compat/) —
@@ -86,108 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applications of all six out of `<cn>`, so a document could transform correctly
   and then be refused by the phrasebook.
 
-### Fixed
-
-- **The binary reader raised in `:recover`.** Its "no leniency" reasoning is
-  sound for recovering a *subtree* — one wrong length and every later byte is
-  misread — and had been stretched to cover `:recover`, whose contract is only
-  that it does not raise. It now returns a document carrying a
-  `moreerrors#encodingError` for the whole input.
-- **`OpenMath.parse` chose its reader outside recovery.** `sniff_format` raises
-  on an empty input, before any reader is picked, so `:recover` raised on the
-  emptiest document there is. A bad `format` still raises: that is the caller's
-  mistake, not the document's.
-- The fuzzer filed a finding under `:auto` as `object.xml` whatever it actually
-  was, giving the conformance driver a fixture that was not what its name said.
-  It uses the sniffed encoding.
-
-- The XML and MathML readers allocated a fresh `String` for every element and
-  attribute name, nearly all of which are compared against a constant and then
-  dropped — an allocation profile put it at the top of the reader. That set is
-  closed and tiny, so a name that matches is now returned as the shared literal:
-  **−22 % allocations per node reading XML, −14 % reading MathML**, and −11.4 %
-  wall time over 200 consecutive parses once garbage collection is counted. This
-  is not the interning `SECURITY.md` forbids, which concerns the unbounded names
-  a *document* chooses; nothing a document supplies is retained.
-- `:recover` added a closure per node in the JSON and MathML readers, allocated
-  even in `:strict`, where it does nothing: +8.5 % allocations in a reader the
-  recovery work otherwise never touched. Found by re-recording the benchmark
-  baseline. The readers branch on the mode instead.
-
-- `.github/workflows/Invalidations.yml` printed the invalidation count for the
-  branch and for the default branch and left the comparing to whoever read the
-  log, which is the same as not comparing them. It now fails on a rise.
-
-- `sts_arity` treated `sts#nassoc` as unbounded but not `sts#nary`, though the
-  `sts` dictionary defines both as "an arbitrary number of copies of the
-  argument". Every n-ary symbol in the official Content Dictionary set therefore
-  carried the arity of its own wrapper — `list1#list` accepted exactly one
-  element — and `validate_against_cds` reported arity violations on the
-  dictionaries' own examples. Found by the new CD-driven harness item, on real
-  data; no hand-written test had covered an `nary` signature.
-
-- `arith1#root` applied to one argument. `<root/>` with no `<degree>` qualifier
-  is the square root, and the missing `2` was not being supplied — so the
-  Symbolics phrasebook raised `MethodError`. Found by the MathML.jl oracle, and
-  only by its shared-document path: the hand-written pairs supply the OpenMath
-  side themselves, so they asserted a `root(x, 2)` nothing produced.
-- `transc1#log` applied to one argument, the same defect a section later.
-  `<log/>` with no `<logbase>` is base 10 (MathML 4 §4.3) and `transc1#log` takes
-  the base first — the `transc1` CD's own FMP reads `log(a, c) = b` when
-  `a^b = c`.
-- The Symbolics phrasebook read `transc1#log(10, x)` as `log(x)/log(10)`: the
-  same number, a different expression, and enough to stop the round trip being
-  the identity. Base 10 and base 2 now map onto `log10` and `log2`, which
-  Symbolics keeps whole — as `arith1#root(a, 2)` already mapped onto `sqrt` —
-  and `to_openmath` writes all three back.
-- Refusals of real Content MathML — `<logbase>`, `<interval>` — claimed it was
-  "not Content MathML at all". The refusal was right and the reason was false,
-  which is worse than a generic message: it tells a reader to stop looking for a
-  rule that exists. Every refusal now names its Appendix F section.
-
-### Security
-
-- **`Base.InvalidCharError` could escape the XML and MathML readers** on
-  malformed UTF-8, breaking the REQ-SEC-001 guarantee that only `OpenMathError`
-  leaves a parser — in `:strict` as much as anywhere. `"g\xe0\x80\x80"`, an
-  overlong encoding of NUL, reached `strip`, which calls `isspace`, which raises
-  on an invalid `Char`. The tokenizer now refuses malformed UTF-8 with the byte
-  offset, which is what XML 1.0 §2.2 requires anyway. Property P8 had covered
-  this ground for months without reaching it: its generator draws *valid*
-  Unicode, so the one class of input a byte-oriented tokenizer most needs to
-  survive was the one class it was never given. Both P8 and P11 now draw raw
-  bytes, and `test/corpus/invalid/xml-overlong-utf8/` pins it.
-- `OpenMath.parse` built a tokenizer while *guessing* whether a document was
-  MathML, outside the reader's recovery, so a lexical error in the guess bypassed
-  `:recover` entirely. The guess is now total, as a guess must be.
-
-- The gate enforcing that parsed content never reaches `eval` walked `src/` and
-  not `ext/`. The `Symbolics` extension is the one place in this package that
-  turns an OpenMath symbol into a call, and it sat outside the gate. It was
-  clean; it was clean unwatched.
-- `SECURITY.md` said "names are `String`, never `Symbol`" without its exception.
-  Decoding a document interns nothing, which is what the object model is for, but
-  `from_openmath` interns — and a service that decodes untrusted OpenMath and
-  converts it will intern every distinct variable name it is sent, unreclaimably.
-  The claim now says *by a parser*; the exception has a remedy
-  (`define_variable!(p, identity)`), a test, and a paragraph of its own.
-- `.gitattributes` exempts `test/corpus/` from line-ending translation. The
-  corpus is byte-exact test vectors and an `OMSTR`'s content is significant
-  whitespace, so a fixture git rewrites tests something different — which is what
-  the first Windows CI run decoded.
-
-### Fixed
-
-- `read_json` raised a `MethodError` instead of an `OpenMathParseError` for a
-  foreign document object — a call site left behind when the reader's error paths
-  became a linked list. It breaks the one thing REQ-SEC-001 promises, and JET
-  found it on Julia 1.10 after passing on 1.13.
-- `Pkg` and `Random` were used by the test suite and declared by nothing, so a
-  clean checkout failed on every Julia version while a grown local manifest hid
-  it. A quality gate now checks statically that every module a test file `using`s
-  is a declared dependency.
-
-### Added
 
 - `docs/src/round-trip.md` — what survives a round trip and what does not, in one
   place. The three text encodings lose nothing; the binary encoding loses exactly
@@ -486,80 +389,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   core and REQ-SEC-001/REQ-API-007 are cheaper to satisfy by owning the tokenizer
   than by wrapping one.
 
-### Changed
-
-- Decision **D1** re-examined against `XML.jl` v0.4.6 with measurements, and the
-  reasoning corrected. Two of the three original arguments do not survive: the
-  binary-artifact objection applies to `EzXML.jl`, not to pure-Julia `XML.jl`, and
-  `XML.jl` *can* capture verbatim source through `sourcetext`, which I had assumed
-  it could not. One argument decides it: `XML.jl` passes an undeclared entity
-  reference through as literal text, so `<OMSTR>&xxe;</OMSTR>` would silently
-  become the string `"&xxe;"` and write back out as `"&amp;xxe;"` — a document
-  that changed meaning with nothing reported. That cannot be detected afterwards,
-  because once the text is decoded an expanded `&lt;` and a literal `<` are the
-  same character. The cost is recorded too: we are 5.7× slower than `XML.jl`.
-
-- `canonicalize` now resolves `cdbase` **before** collapsing attributions. The
-  order is load-bearing: `collapse_attributions` may only merge an `OMATTR` that
-  carries no `cdbase` of its own, so collapsing first made the normal form depend
-  on *where* the base happened to be written — `OMATTR(OMATTR(x, a), b)` flattened
-  when the inner node had no base and did not when an equivalent document put one
-  there. Found by the property layer within minutes of its existing; it had
-  falsified the XML round trip and both `minimize_cdbase` properties.
-- `OMForeign.value` is the **verbatim source** of the foreign content rather than
-  decoded text. The standard allows arbitrary XML there, so decoding entity
-  references made embedded markup indistinguishable from text that merely looks
-  like markup and broke the lossless round trip (REQ-OM-003). The writer refuses
-  foreign content that is not a well-formed fragment instead of escaping it,
-  because escaping would change the value.
-
-### Fixed
-
-- The binary writer emitted `[24+64]` for every document and base-256 digits for
-  every big integer. Both were legal and neither was interoperable: GAP rejects
-  the first outright and misreads the second. Found by the oracle above, on its
-  first run.
-
-- An `OMR` whose `href` is not a bare fragment is an **external** reference —
-  it names an object in another document (standard §3.1.2, and the binary
-  encoding gives internal and external references separate tokens, 30 and 31).
-  `validate` reported one as a dangling reference and `expand_references` threw on
-  it, which made every document citing another one unusable. They are now left
-  alone by the passes, and only a fragment-only reference with no matching `id`
-  is dangling. `isinternal` and `reference_target` name the distinction.
-  Found by the official `scscp1` dictionary, which does exactly this.
-
-- `OpenMath.xml` and `OpenMath.json` accepted `OMOrForeign`, promising in their
-  signature that they could serialise foreign content as a document root — but
-  `OMObject` takes an `OMNode`, because foreign content is not an OpenMath object.
-  `OpenMath.xml(OMForeign(…))` therefore raised a bare `MethodError`, outside the
-  `OpenMathError` family the API promises. The signatures now say `OMNode`.
-  **Found by JET**, and by nothing else: the corpus, the property layer and the
-  differential oracle all only ever place foreign content *inside* a document.
-
-- Two quadratic behaviours in the XML reader, both on the attacker-controlled
-  depth dimension and therefore denial-of-service rather than merely slow paths:
-  - error-path construction materialised `/OMOBJ/OMA/OMA/…` at every level, which
-    exhausted memory on a deeply nested document. The path is now walked only
-    when an error is raised.
-  - namespace resolution searched a stack of partial scopes from the top. Each
-    frame now holds the fully resolved mapping and shares its parent's dictionary
-    by reference unless the element declares an `xmlns`. A 200 000-deep document
-    went from 8 min 30 s to 2.8 s.
-- `SubString` over byte ranges in the tokenizer threw `StringIndexError` on any
-  multi-byte character — an `OMV` named `λ` was enough — and that is outside the
-  `OpenMathError` family the API promises (REQ-SEC-001). Slicing now goes through
-  the code units, which is also correct for malformed UTF-8.
-- Warnings recorded by a `:lenient` parse grew without bound on hostile input:
-  the missing-namespace warning was emitted per element rather than once, and
-  nothing capped the list. Document-wide warnings are now reported once and the
-  list is capped, with a trailing count of what was suppressed.
-
-## [0.0.1] - 2026-09-17
-
-Phase 0 (scaffolding and harness) and Phase 1 (object model) of `ROADMAP.md`.
-
-### Added
 
 - **JSON encoding** (standard §3.3, roadmap Phase 3): `read_json`, `write_json`,
   `OpenMath.json` and `show(io, MIME"application/openmath+json", …)`, plus JSON
@@ -623,5 +452,179 @@ Phase 0 (scaffolding and harness) and Phase 1 (object model) of `ROADMAP.md`.
   into the built site.
 - Task cards for Phase 2 in `specs/tasks/`.
 
-[Unreleased]: https://github.com/s-celles/OpenMath.jl/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/s-celles/OpenMath.jl/releases/tag/v0.0.1
+### Changed
+
+- Decision **D1** re-examined against `XML.jl` v0.4.6 with measurements, and the
+  reasoning corrected. Two of the three original arguments do not survive: the
+  binary-artifact objection applies to `EzXML.jl`, not to pure-Julia `XML.jl`, and
+  `XML.jl` *can* capture verbatim source through `sourcetext`, which I had assumed
+  it could not. One argument decides it: `XML.jl` passes an undeclared entity
+  reference through as literal text, so `<OMSTR>&xxe;</OMSTR>` would silently
+  become the string `"&xxe;"` and write back out as `"&amp;xxe;"` — a document
+  that changed meaning with nothing reported. That cannot be detected afterwards,
+  because once the text is decoded an expanded `&lt;` and a literal `<` are the
+  same character. The cost is recorded too: we are 5.7× slower than `XML.jl`.
+
+- `canonicalize` now resolves `cdbase` **before** collapsing attributions. The
+  order is load-bearing: `collapse_attributions` may only merge an `OMATTR` that
+  carries no `cdbase` of its own, so collapsing first made the normal form depend
+  on *where* the base happened to be written — `OMATTR(OMATTR(x, a), b)` flattened
+  when the inner node had no base and did not when an equivalent document put one
+  there. Found by the property layer within minutes of its existing; it had
+  falsified the XML round trip and both `minimize_cdbase` properties.
+- `OMForeign.value` is the **verbatim source** of the foreign content rather than
+  decoded text. The standard allows arbitrary XML there, so decoding entity
+  references made embedded markup indistinguishable from text that merely looks
+  like markup and broke the lossless round trip (REQ-OM-003). The writer refuses
+  foreign content that is not a well-formed fragment instead of escaping it,
+  because escaping would change the value.
+
+### Fixed
+
+- This file announced a `0.0.1` release, dated it, and linked to a GitHub release
+  tag — and **`v0.0.1` was never tagged**; no release has ever been cut. It also
+  described that section as "Phase 0 and Phase 1" while listing Phase 3 work, and
+  carried three `### Added` and three `### Fixed` headings under one release
+  because every commit prepended its own. A gate now resolves every version and
+  link against `git tag`, and checks the sections are unique and in order.
+
+- **The binary reader raised in `:recover`.** Its "no leniency" reasoning is
+  sound for recovering a *subtree* — one wrong length and every later byte is
+  misread — and had been stretched to cover `:recover`, whose contract is only
+  that it does not raise. It now returns a document carrying a
+  `moreerrors#encodingError` for the whole input.
+- **`OpenMath.parse` chose its reader outside recovery.** `sniff_format` raises
+  on an empty input, before any reader is picked, so `:recover` raised on the
+  emptiest document there is. A bad `format` still raises: that is the caller's
+  mistake, not the document's.
+- The fuzzer filed a finding under `:auto` as `object.xml` whatever it actually
+  was, giving the conformance driver a fixture that was not what its name said.
+  It uses the sniffed encoding.
+
+- The XML and MathML readers allocated a fresh `String` for every element and
+  attribute name, nearly all of which are compared against a constant and then
+  dropped — an allocation profile put it at the top of the reader. That set is
+  closed and tiny, so a name that matches is now returned as the shared literal:
+  **−22 % allocations per node reading XML, −14 % reading MathML**, and −11.4 %
+  wall time over 200 consecutive parses once garbage collection is counted. This
+  is not the interning `SECURITY.md` forbids, which concerns the unbounded names
+  a *document* chooses; nothing a document supplies is retained.
+- `:recover` added a closure per node in the JSON and MathML readers, allocated
+  even in `:strict`, where it does nothing: +8.5 % allocations in a reader the
+  recovery work otherwise never touched. Found by re-recording the benchmark
+  baseline. The readers branch on the mode instead.
+
+- `.github/workflows/Invalidations.yml` printed the invalidation count for the
+  branch and for the default branch and left the comparing to whoever read the
+  log, which is the same as not comparing them. It now fails on a rise.
+
+- `sts_arity` treated `sts#nassoc` as unbounded but not `sts#nary`, though the
+  `sts` dictionary defines both as "an arbitrary number of copies of the
+  argument". Every n-ary symbol in the official Content Dictionary set therefore
+  carried the arity of its own wrapper — `list1#list` accepted exactly one
+  element — and `validate_against_cds` reported arity violations on the
+  dictionaries' own examples. Found by the new CD-driven harness item, on real
+  data; no hand-written test had covered an `nary` signature.
+
+- `arith1#root` applied to one argument. `<root/>` with no `<degree>` qualifier
+  is the square root, and the missing `2` was not being supplied — so the
+  Symbolics phrasebook raised `MethodError`. Found by the MathML.jl oracle, and
+  only by its shared-document path: the hand-written pairs supply the OpenMath
+  side themselves, so they asserted a `root(x, 2)` nothing produced.
+- `transc1#log` applied to one argument, the same defect a section later.
+  `<log/>` with no `<logbase>` is base 10 (MathML 4 §4.3) and `transc1#log` takes
+  the base first — the `transc1` CD's own FMP reads `log(a, c) = b` when
+  `a^b = c`.
+- The Symbolics phrasebook read `transc1#log(10, x)` as `log(x)/log(10)`: the
+  same number, a different expression, and enough to stop the round trip being
+  the identity. Base 10 and base 2 now map onto `log10` and `log2`, which
+  Symbolics keeps whole — as `arith1#root(a, 2)` already mapped onto `sqrt` —
+  and `to_openmath` writes all three back.
+- Refusals of real Content MathML — `<logbase>`, `<interval>` — claimed it was
+  "not Content MathML at all". The refusal was right and the reason was false,
+  which is worse than a generic message: it tells a reader to stop looking for a
+  rule that exists. Every refusal now names its Appendix F section.
+
+
+- `read_json` raised a `MethodError` instead of an `OpenMathParseError` for a
+  foreign document object — a call site left behind when the reader's error paths
+  became a linked list. It breaks the one thing REQ-SEC-001 promises, and JET
+  found it on Julia 1.10 after passing on 1.13.
+- `Pkg` and `Random` were used by the test suite and declared by nothing, so a
+  clean checkout failed on every Julia version while a grown local manifest hid
+  it. A quality gate now checks statically that every module a test file `using`s
+  is a declared dependency.
+
+
+- The binary writer emitted `[24+64]` for every document and base-256 digits for
+  every big integer. Both were legal and neither was interoperable: GAP rejects
+  the first outright and misreads the second. Found by the oracle above, on its
+  first run.
+
+- An `OMR` whose `href` is not a bare fragment is an **external** reference —
+  it names an object in another document (standard §3.1.2, and the binary
+  encoding gives internal and external references separate tokens, 30 and 31).
+  `validate` reported one as a dangling reference and `expand_references` threw on
+  it, which made every document citing another one unusable. They are now left
+  alone by the passes, and only a fragment-only reference with no matching `id`
+  is dangling. `isinternal` and `reference_target` name the distinction.
+  Found by the official `scscp1` dictionary, which does exactly this.
+
+- `OpenMath.xml` and `OpenMath.json` accepted `OMOrForeign`, promising in their
+  signature that they could serialise foreign content as a document root — but
+  `OMObject` takes an `OMNode`, because foreign content is not an OpenMath object.
+  `OpenMath.xml(OMForeign(…))` therefore raised a bare `MethodError`, outside the
+  `OpenMathError` family the API promises. The signatures now say `OMNode`.
+  **Found by JET**, and by nothing else: the corpus, the property layer and the
+  differential oracle all only ever place foreign content *inside* a document.
+
+- Two quadratic behaviours in the XML reader, both on the attacker-controlled
+  depth dimension and therefore denial-of-service rather than merely slow paths:
+  - error-path construction materialised `/OMOBJ/OMA/OMA/…` at every level, which
+    exhausted memory on a deeply nested document. The path is now walked only
+    when an error is raised.
+  - namespace resolution searched a stack of partial scopes from the top. Each
+    frame now holds the fully resolved mapping and shares its parent's dictionary
+    by reference unless the element declares an `xmlns`. A 200 000-deep document
+    went from 8 min 30 s to 2.8 s.
+- `SubString` over byte ranges in the tokenizer threw `StringIndexError` on any
+  multi-byte character — an `OMV` named `λ` was enough — and that is outside the
+  `OpenMathError` family the API promises (REQ-SEC-001). Slicing now goes through
+  the code units, which is also correct for malformed UTF-8.
+- Warnings recorded by a `:lenient` parse grew without bound on hostile input:
+  the missing-namespace warning was emitted per element rather than once, and
+  nothing capped the list. Document-wide warnings are now reported once and the
+  list is capped, with a trailing count of what was suppressed.
+
+### Security
+
+- **`Base.InvalidCharError` could escape the XML and MathML readers** on
+  malformed UTF-8, breaking the REQ-SEC-001 guarantee that only `OpenMathError`
+  leaves a parser — in `:strict` as much as anywhere. `"g\xe0\x80\x80"`, an
+  overlong encoding of NUL, reached `strip`, which calls `isspace`, which raises
+  on an invalid `Char`. The tokenizer now refuses malformed UTF-8 with the byte
+  offset, which is what XML 1.0 §2.2 requires anyway. Property P8 had covered
+  this ground for months without reaching it: its generator draws *valid*
+  Unicode, so the one class of input a byte-oriented tokenizer most needs to
+  survive was the one class it was never given. Both P8 and P11 now draw raw
+  bytes, and `test/corpus/invalid/xml-overlong-utf8/` pins it.
+- `OpenMath.parse` built a tokenizer while *guessing* whether a document was
+  MathML, outside the reader's recovery, so a lexical error in the guess bypassed
+  `:recover` entirely. The guess is now total, as a guess must be.
+
+- The gate enforcing that parsed content never reaches `eval` walked `src/` and
+  not `ext/`. The `Symbolics` extension is the one place in this package that
+  turns an OpenMath symbol into a call, and it sat outside the gate. It was
+  clean; it was clean unwatched.
+- `SECURITY.md` said "names are `String`, never `Symbol`" without its exception.
+  Decoding a document interns nothing, which is what the object model is for, but
+  `from_openmath` interns — and a service that decodes untrusted OpenMath and
+  converts it will intern every distinct variable name it is sent, unreclaimably.
+  The claim now says *by a parser*; the exception has a remedy
+  (`define_variable!(p, identity)`), a test, and a paragraph of its own.
+- `.gitattributes` exempts `test/corpus/` from line-ending translation. The
+  corpus is byte-exact test vectors and an `OMSTR`'s content is significant
+  whitespace, so a fixture git rewrites tests something different — which is what
+  the first Windows CI run decoded.
+
+[Unreleased]: https://github.com/s-celles/OpenMath.jl/commits/main
