@@ -463,6 +463,14 @@ manual review.
 
 ### Changed
 
+- `docs/src/design/xml-backend.md` (decision D1) re-verified against `XML.jl`
+  v0.4.6 and `main`. Two of the three entity behaviours it cited have moved:
+  internal-subset inclusion is fixed upstream, and the external-subset case is an
+  open policy question there. Only the undeclared-entity case is unchanged — the
+  one the decision rests on — so the argument is narrower than when it was made
+  and still holds. Reported as
+  [JuliaData/XML.jl#152](https://github.com/JuliaData/XML.jl/issues/152).
+
 - CI runs Julia **1.10 and 1.13** only. `nightly` and `pre` ran with
   `continue-on-error: true`, so they could not fail the workflow and could only
   show a red job nobody was meant to act on.

@@ -795,3 +795,55 @@ number of copies of the argument". So every n-ary symbol in the official set had
 the arity of its own wrapper, and `list1#list` accepted exactly one element.
 That defect accounted for most of the first run's noise, and was indistinguishable
 from an upstream fault until the signature was read.
+
+---
+
+## XML.jl 0.4.6 — an undeclared entity reference is accepted as literal text
+
+- **Found**: 2026-09-17, deciding roadmap decision D1; re-verified 2026-09-20
+- **Affected**: `XML.jl` v0.4.6 (latest release) **and** `main` at tree hash
+  `4315db226f6ed00c614f20a14e64103655fbec35`; Julia 1.13.0
+- **Reported**: <https://github.com/JuliaData/XML.jl/issues/152>, 2026-09-20
+- **Workaround**: none possible downstream. This package owns its XML tokenizer
+  (`src/xml/tokenizer.jl`) for this reason; see `docs/src/design/xml-backend.md`
+
+### Reproducer
+
+```julia
+julia> using XML
+
+julia> XML.parse(XML.Node, "<r>&xxe;</r>")     # no DTD anywhere in the document
+```
+
+### Expected / actual
+
+The document has no DTD, so XML 1.0 (Fifth Edition) §4.1, WFC **Entity
+Declared**, requires the name in an entity reference to match a declaration.
+§5.1 makes a violation of a well-formedness constraint a **fatal error**.
+
+`XML.jl` accepts the document and the text node holds the seven literal
+characters `&xxe;`.
+
+The practical consequence is worse than the conformance one. Writing that node
+back produces `&amp;xxe;`: the document has silently changed meaning, and
+nothing reported it. A reader and a writer that share the behaviour agree with
+each other on the wrong value, so a round-trip test cannot see it either.
+
+### Not a duplicate
+
+- **#130** (closed) added §4.4 inclusion for entities declared in the internal
+  subset. Verified fixed on `main`: `<!DOCTYPE r [<!ENTITY e "X">]><r>&e;</r>`
+  now yields `X`, where v0.4.6 yields the literal `&e;`. Different rule.
+- **#137** (open) concerns entities declared in an *external* subset. Not
+  including those is permitted — §4.4.3 lets a non-validating processor decline
+  to read them — so that is a policy question. This is not: an undeclared entity
+  has no declaration anywhere to honour.
+
+### A smaller, related point
+
+§4.4.3 says a processor that recognises but does not read an external entity
+"must inform the application" that it did so. On `main`,
+`<!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd">]><r>&x;</r>` yields the
+literal `&x;` with no signal. Declining to fetch is the right call — XXE follows
+directly from any retrieval — but the silence is the same failure shape as
+above. This probably belongs to #137 rather than to a report of its own.

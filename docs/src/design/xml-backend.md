@@ -104,7 +104,21 @@ but it is why the cost has been paid once rather than twice.
   and poor for a firehose. The fix is to optimise our tokeniser, not to adopt a
   parser whose leniency we would then have to undo.
 - **`XML.jl` grows a strict mode** that rejects undeclared entities and DTDs. Then
-  the deciding argument disappears and the balance tips.
+  the deciding argument disappears and the balance tips. The behaviour is now
+  reported upstream as
+  [JuliaData/XML.jl#152](https://github.com/JuliaData/XML.jl/issues/152), where
+  it is framed as a well-formedness question — XML 1.0 §4.1 WFC *Entity
+  Declared* makes an undeclared reference a fatal error — rather than as a
+  request shaped around this package's needs. No remedy was proposed: #137 shows
+  entity policy is being decided deliberately there, and whether this belongs
+  behind a flag or in the default path is the maintainers' call.
+
+  Re-verified 2026-09-20 against v0.4.6 and `main` (`4315db22`). Two of the three
+  entity behaviours this note once cited have moved: **#130 fixed internal-subset
+  inclusion**, so `<!ENTITY e "X">` then `&e;` now yields `X` on `main`, and the
+  external-subset case is #137's open policy question. Only the undeclared case
+  is unchanged — which is the one the decision rests on, so the decision is
+  narrower than when it was made but still stands.
 - **The tokeniser needs namespace prefixes beyond the OpenMath URI, or
   `OMFOREIGN` content ever needs parsing rather than capturing.** Either would
   mean we are reimplementing a general parser.
