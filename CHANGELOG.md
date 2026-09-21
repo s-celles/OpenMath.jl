@@ -463,13 +463,17 @@ manual review.
 
 ### Changed
 
-- `docs/src/design/xml-backend.md` (decision D1) re-verified against `XML.jl`
-  v0.4.6 and `main`. Two of the three entity behaviours it cited have moved:
-  internal-subset inclusion is fixed upstream, and the external-subset case is an
-  open policy question there. Only the undeclared-entity case is unchanged — the
-  one the decision rests on — so the argument is narrower than when it was made
-  and still holds. Reported as
-  [JuliaData/XML.jl#152](https://github.com/JuliaData/XML.jl/issues/152).
+- **Decision D1 is re-opened.** `docs/src/design/xml-backend.md` rested on one
+  argument — an undeclared entity reference must be a fatal error, and only a
+  tokenizer we own can decide that. It is false. `XML.jl` has three
+  well-formedness levels and always did; every measurement on that page was taken
+  at the default and reported as the whole behaviour, [as the maintainer
+  pointed out](https://github.com/JuliaData/XML.jl/issues/152#issuecomment-5764965951).
+  At `wellformed = :strict` the reference is rejected citing §4.1, and a
+  `FlatNode` parsed that way also exposes `sourcetext` — the other half of the
+  case. The page's own revisit condition has fired, and it no longer claims the
+  decision is forced: the tokenizer stays on cost, and a prototype behind the
+  conformance driver will settle it when #139 ships.
 
 - CI runs Julia **1.10 and 1.13** only. `nightly` and `pre` ran with
   `continue-on-error: true`, so they could not fail the workflow and could only

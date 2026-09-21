@@ -803,7 +803,21 @@ from an upstream fault until the signature was read.
 - **Found**: 2026-09-17, deciding roadmap decision D1; re-verified 2026-09-20
 - **Affected**: `XML.jl` v0.4.6 (latest release) **and** `main` at tree hash
   `4315db226f6ed00c614f20a14e64103655fbec35`; Julia 1.13.0
-- **Reported**: <https://github.com/JuliaData/XML.jl/issues/152>, 2026-09-20
+- **Reported**: <https://github.com/JuliaData/XML.jl/issues/152>, 2026-09-20.
+  **Answered 2026-09-21, and the report was partly wrong.** `XML.jl` has three
+  well-formedness levels and always did; this investigation never passed one, so
+  it tested the default and reported it as the whole behaviour. On `main` at
+  `1681e21`, `wellformed = :strict` rejects the reference with the §4.1 fatal
+  error on both `Node` and `FlatNode`. #139 brings it to the next release. What
+  v0.4.6 lacks is entity handling at *any* level, which is a narrower statement
+  than the one filed.
+  **Answered 2026-09-21, and the report was partly wrong.** `XML.jl` has three
+  well-formedness levels and always did; this investigation never passed one, so
+  it tested the default and reported it as the whole behaviour. On `main` at
+  `1681e21`, `wellformed = :strict` rejects the reference with the §4.1 fatal
+  error on both `Node` and `FlatNode`. #139 brings it to the next release. What
+  v0.4.6 lacks is entity handling at *any* level, which is a narrower statement
+  than the one filed
 - **Workaround**: none possible downstream. This package owns its XML tokenizer
   (`src/xml/tokenizer.jl`) for this reason; see `docs/src/design/xml-backend.md`
 

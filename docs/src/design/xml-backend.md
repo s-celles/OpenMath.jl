@@ -1,8 +1,9 @@
 # Decision D1 — the XML backend
 
-**Status**: settled, 2026-09-17; re-examined against `XML.jl` with measurements on
-the same date. **Outcome**: a purpose-built pull tokenizer, in
-`src/xml/tokenizer.jl`.
+**Status**: **re-opened 2026-09-21.** Settled 2026-09-17 on an argument that is
+no longer true. **Outcome for now**: the purpose-built pull tokenizer in
+`src/xml/tokenizer.jl` stays, on cost rather than on capability — see
+[What changed](#What-changed), which is the part of this page to read first.
 
 ## The candidates
 
@@ -84,28 +85,80 @@ is a *floor* on what a rewrite could reach, not a figure it would hit. But the
 direction is not in doubt: owning the tokeniser costs throughput, and no earlier
 version of this page said so.
 
-## Conclusion
+## What changed
 
-The decision stands, on one argument rather than the three originally claimed:
-**OpenMath needs an undeclared entity reference to be an error, and that can only
-be decided while tokenising.** Everything else is secondary — the zero-dependency
-property is nice, `sourcetext` shows the verbatim argument was mine to lose, and
-performance is a real cost we are choosing to pay.
+The decision rested on one argument: **an undeclared entity reference must be an
+error, and that can only be decided while tokenising.** That argument is false.
 
-A second argument emerged only in use, after the decision: the CD parser
-(`src/cd/parser.jl`) reuses the same tokeniser to lift `<OMOBJ>` documents out of
-`.ocd` files, so Content Dictionary examples get exactly the treatment any other
-document gets. That was not foreseen and does not justify the decision on its own,
-but it is why the cost has been paid once rather than twice.
+`XML.jl` has three well-formedness levels, and always did. We never passed one.
+Every measurement on this page was taken at the default, `:structural`, and
+reported as though it were the only behaviour — including in the issue filed
+upstream, which said the behaviour was "unchanged on `main`" when it is unchanged
+only at the default. [`mathieu17g` corrected
+it](https://github.com/JuliaData/XML.jl/issues/152#issuecomment-5764965951).
+
+On `main` at [`1681e21`](https://github.com/JuliaData/XML.jl/commit/1681e214b23c1783cd27ba315e609eee23a6685d),
+verified here:
+
+```julia
+julia> XML.parse(XML.Node, "<r>&xxe;</r>"; wellformed = :strict)
+ERROR: not well-formed: reference to undeclared entity "&xxe;" (XML 1.0 §4.1)
+```
+
+Both halves of the case are answered, and by the same object:
+
+| What we needed | Where it is |
+|:--|:--|
+| an undeclared entity is a fatal error | `wellformed = :strict`, on `Node` and `FlatNode` |
+| `OMFOREIGN` content kept verbatim | `sourcetext` on a `FlatNode`, which returns the exact bytes |
+
+`FlatNode` parsed at `:strict` gives both at once. The second was already
+conceded on this page as "mine to lose"; the first was the whole decision.
+
+**The revisit condition below has fired.** It says: *"`XML.jl` grows a strict
+mode that rejects undeclared entities and DTDs — then the deciding argument
+disappears and the balance tips."* It did. Keeping the tokenizer because it is
+already written would be exactly the bias that condition was set down to prevent,
+so this page no longer claims the decision is forced.
+
+## What still argues for our own tokenizer
+
+Two things, and they are weaker than what they replace.
+
+**Limits are enforced during the parse.** `max_depth`, `max_nodes` and
+`max_bytes` stop hostile input before the work is done (REQ-SEC-002);
+`Node`/`FlatNode` materialise the tree and we would check afterwards, by which
+time the attacker has the allocation. Measured: 100 000 nesting levels parse in
+0.02 s with no stack overflow, so this is about bounding *work*, not about
+robustness — and capping input bytes before the call would bound the tree
+anyway. It is a real difference and a smaller one than it sounds.
+
+**Three readers share the tokenizer.** XML, Strict Content MathML and the CD
+parser are all pull readers built on the same `_Frame` stack. Switching is not
+replacing one file; it is restructuring three readers around a materialised
+tree. That is cost, not merit, and it should be named as cost.
+
+Against both: `XML.jl` builds a generic tree **5.7× faster** than we build a
+validated one, allocates 3× less, and is a tokenizer we would not maintain.
+
+## What would settle it
+
+Not argument — measurement, which is what the harness is for. When #139 ships,
+put a prototype backed by `FlatNode` + `wellformed = :strict` behind the same
+conformance driver: 84 corpus items, 7501 assertions, the property layer and the
+fuzz campaign. What breaks and what it costs are then facts rather than
+positions, and this page can be rewritten from them.
+
+Until then the tokenizer stays because replacing it is a large change with no
+defect driving it — which is a reason to wait, not a reason to have been right.
 
 ## Revisit if
 
 - **Throughput becomes a complaint.** 13.9 ms for 200 KiB is fine for documents
   and poor for a firehose. The fix is to optimise our tokeniser, not to adopt a
   parser whose leniency we would then have to undo.
-- **`XML.jl` grows a strict mode** that rejects undeclared entities and DTDs. Then
-  the deciding argument disappears and the balance tips. The behaviour is now
-  reported upstream as
+- ~~**`XML.jl` grows a strict mode** that rejects undeclared entities and DTDs.~~
+  **This has happened** — see [What changed](#What-changed). Reported upstream as
   [JuliaData/XML.jl#152](https://github.com/JuliaData/XML.jl/issues/152), where
   it is framed as a well-formedness question — XML 1.0 §4.1 WFC *Entity
   Declared* makes an undeclared reference a fatal error — rather than as a
