@@ -196,3 +196,38 @@ end
         OMObject(OMApplication(OMVariable("f"),
         [OMReference("#a"), OMInteger(1; id = "a")])))
 end
+
+@testitem "cross-encoding: XML cannot carry a C0 control, and says so" tags = [:unit] begin
+    using OpenMath
+    # XML 1.0 §2.2 admits tab, newline, carriage return and then nothing below
+    # U+0020, and it has no escape for what it excludes — `&#0;` is as ill-formed
+    # as a raw NUL. So an `OMSTR` holding one has no XML representation.
+    #
+    # The writer used to emit it anyway. `OMSTR("\0")` produced a document expat
+    # refuses and our own reader read back happily, because reader and writer
+    # shared the fault and agreed with each other — the one failure shape a
+    # round-trip test cannot see. Found by putting the package behind `XML.jl`,
+    # which refused to read what we had written.
+    for bad in ("\0", "\x01", "\x1f", "a\0b")
+        @test_throws OpenMath.OpenMathConversionError OpenMath.xml(
+            OMObject(OMString(bad)))
+        @test_throws OpenMath.OpenMathConversionError OpenMath.mathml(
+            OMObject(OMString(bad)))
+        # JSON and binary carry it exactly, which is why this is a property of
+        # the encoding and not of the object.
+        for (write, format) in ((OpenMath.json, :json), (OpenMath.binary, :binary))
+            back = OpenMath.parse(write(OMObject(OMString(bad))); format = format)
+            @test back.object.value == bad
+        end
+    end
+
+    # And the characters XML *does* admit survive, including the two that
+    # line-ending normalisation would otherwise eat (§2.11, §3.3.3): they are
+    # written as character references for exactly that reason.
+    for ok in ("\t", "\n", "\r", "a\r\nb", "λ", "変数")
+        back = OpenMath.parse(OpenMath.xml(OMObject(OMString(ok))); format = :xml)
+        @test "$(repr(ok)): $(repr(back.object.value))" == "$(repr(ok)): $(repr(ok))"
+    end
+    v = OpenMath.parse(OpenMath.xml(OMObject(OMVariable("x"))); format = :xml)
+    @test v.object.name == "x"
+end

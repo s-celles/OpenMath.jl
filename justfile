@@ -215,6 +215,15 @@ invalidations-setup:
 invalidations *ARGS:
     {{julia}} --project=refs/invalidations-env --startup-file=no test/harness/invalidations.jl {{ARGS}}
 
+# Select the XML tokenizer backend: "own" or "xmljl" (decision D1).
+#
+# Rewrites the constant in src/xml/backend.jl. A `Preferences` entry is the
+# idiomatic mechanism and was tried: it needs a dependency that JET's virtual
+# module cannot resolve, which made the whole package unanalysable.
+xml-backend NAME:
+    @sed -i 's/^const XML_BACKEND = :.*/const XML_BACKEND = :{{NAME}}/' src/xml/backend.jl
+    @grep '^const XML_BACKEND' src/xml/backend.jl
+
 # Regenerate the conformance report: the docs page (committed) and the JSON
 # (gitignored). A test asserts the page matches a fresh run.
 conformance-report:

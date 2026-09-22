@@ -29,6 +29,8 @@ end
 
     @check max_examples = 400 function p2_xml_roundtrip(obj = Generators.gen_object())
         Regression.checked("p2_xml_roundtrip", obj) do obj
+            # XML cannot carry a C0 control; JSON and binary can.
+            Generators.xml_representable(obj) || return true
             back = OpenMath.parse(OpenMath.xml(obj); format = :xml)
             canonicalize(back) == canonicalize(obj)
         end
@@ -36,6 +38,8 @@ end
 
     @check max_examples = 200 function p2_xml_roundtrip_pretty(obj = Generators.gen_object())
         Regression.checked("p2_xml_roundtrip_pretty", obj) do obj
+            # XML cannot carry a C0 control; JSON and binary can.
+            Generators.xml_representable(obj) || return true
             back = OpenMath.parse(OpenMath.xml(obj; pretty = true); format = :xml)
             canonicalize(back) == canonicalize(obj)
         end
@@ -55,6 +59,8 @@ end
     # rather than a tautology.
     @check max_examples = 400 function p3_cross_encoding(obj = Generators.gen_object())
         Regression.checked("p3_cross_encoding", obj) do obj
+            # XML cannot carry a C0 control; JSON and binary can.
+            Generators.xml_representable(obj) || return true
             viaxml = OpenMath.parse(OpenMath.xml(obj); format = :xml)
             viajson = OpenMath.parse(OpenMath.json(obj); format = :json)
             canonicalize(viaxml) == canonicalize(viajson)
@@ -70,6 +76,8 @@ end
 
     @check max_examples = 300 function p3_mathml_agrees(obj = Generators.gen_object())
         Regression.checked("p3_mathml_agrees", obj) do obj
+            # XML cannot carry a C0 control; JSON and binary can.
+            Generators.xml_representable(obj) || return true
             viaxml = OpenMath.parse(OpenMath.xml(obj); format = :xml)
             viamml = OpenMath.parse(OpenMath.mathml(obj); format = :mathml)
             canonicalize(viaxml) == canonicalize(viamml)
@@ -78,6 +86,8 @@ end
 
     @check max_examples = 300 function p3_mathml_write_stable(obj = Generators.gen_object())
         Regression.checked("p3_mathml_write_stable", obj) do obj
+            # XML cannot carry a C0 control; JSON and binary can.
+            Generators.xml_representable(obj) || return true
             once = OpenMath.mathml(obj)
             once == OpenMath.mathml(OpenMath.parse(once; format = :mathml))
         end
@@ -111,6 +121,8 @@ end
 
     @check max_examples = 400 function p4_binary_agrees(obj = Generators.gen_object())
         Regression.checked("p4_binary_agrees", obj) do obj
+            # XML cannot carry a C0 control; JSON and binary can.
+            Generators.xml_representable(obj) || return true
             viaxml = OpenMath.parse(OpenMath.xml(obj); format = :xml)
             viabin = OpenMath.read_binary(OpenMath.binary(obj))
             canonicalize(viaxml) == canonicalize(viabin)
@@ -189,6 +201,8 @@ end
     # round-trip-correct can still be unstable, which makes diffs useless.
     @check max_examples = 400 function p2b_write_stable(obj = Generators.gen_object())
         Regression.checked("p2b_write_stable", obj) do obj
+            # XML cannot carry a C0 control; JSON and binary can.
+            Generators.xml_representable(obj) || return true
             once = OpenMath.xml(obj)
             once == OpenMath.xml(OpenMath.parse(once; format = :xml))
         end
@@ -394,6 +408,9 @@ end
     # into the reader, and is also what a flaky peer actually sends.
     @check max_examples = 400 function p11_mutilated(
             obj = Generators.gen_node(), cut = Data.Integers(0, 400))
+        # A C0 control has no XML representation, so there is nothing to
+        # mutilate — see `Generators.xml_representable`.
+        Generators.xml_representable(obj) || return true
         src = OpenMath.xml(OMObject(obj))
         n = min(cut, ncodeunits(src))
         fragment = String(codeunits(src)[1:n])
@@ -417,6 +434,9 @@ end
             obj = Generators.gen_object(),
             cut = Data.Integers(0, 100)
     )
+        # A C0 control has no XML representation, so there is nothing to
+        # truncate — see `Generators.xml_representable`.
+        Generators.xml_representable(obj) || return true
         src = OpenMath.xml(obj)
         n = ncodeunits(src)
         piece = String(@view codeunits(src)[1:clamp(div(cut * n, 100), 0, n)])

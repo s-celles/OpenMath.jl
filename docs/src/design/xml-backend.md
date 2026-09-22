@@ -141,16 +141,68 @@ tree. That is cost, not merit, and it should be named as cost.
 Against both: `XML.jl` builds a generic tree **5.7× faster** than we build a
 validated one, allocates 3× less, and is a tokenizer we would not maintain.
 
+## What the prototype measured
+
+The prototype was built (`src/xml/tokenizer_xmljl.jl`, selected by
+`just xml-backend xmljl`): an adapter presenting `XML.jl`'s `FlatNode` at
+`wellformed = :strict` as the same event stream the hand-written tokenizer
+presents, so all three readers run unchanged and the comparison is about the
+tokenizer alone.
+
+**Both backends pass everything.** 7524 conformance assertions, 42 properties,
+the slow tier. The unit count differs — 2527 against 2405 — because fifteen items
+test the hand-written tokenizer's *internals* and are skipped for the other.
+
+**The performance argument in this page was backwards.** It claimed `XML.jl` is
+5.7× faster, from a comparison of "`XML.jl` → generic tree" against "us →
+validated `OMObject`", which is not the same work. Measured like for like, both
+producing an `OMObject`:
+
+| | own | via `XML.jl` |
+|:--|--:|--:|
+| `read-xml` | 1.165 ms, 15.92 alloc/node | **3.970 ms, 58.30** |
+| `read-mathml` | 1.328 ms, 22.02 alloc/node | **2.826 ms, 40.09** |
+
+3.4× slower, 3.7× more allocation. The adapter is part of that — a tree is built,
+flattened to events, then walked into an `OMObject`: three passes and two
+intermediate representations against one streaming pass. A native rewrite of the
+readers onto `FlatNode` would land somewhere better and is not measured; what is
+measured is that the route with an adapter costs more, not less.
+
+**Limits are the real difference, and smaller than claimed.** With
+`max_depth = 100` against a document nested far deeper:
+
+| depth | source | own | via `XML.jl` |
+|--:|--:|--:|--:|
+| 1 000 | 32 KiB | 0.1 MB | 5.7 MB |
+| 10 000 | 322 KiB | 0.1 MB | 59.8 MB |
+| 50 000 | 1.6 MiB | 0.1 MB | 286.2 MB |
+
+Both refuse with `OpenMathLimitError`. The pull tokenizer refuses after 0.1 MB
+whatever the input; the tree must exist first, so the cost tracks the document —
+roughly 180× its size. That matters for a service reading untrusted OpenMath and
+it is bounded work, not unbounded.
+
+*An earlier draft of this table read 6.6 GB and a `StackOverflowError`, and the
+fault was the adapter's: it materialised every element's inner text (quadratic
+on a nested document) and walked recursively. Both are this project's own rules,
+broken while writing the thing that checks them. The numbers above are after.*
+
 ## What would settle it
 
-Not argument — measurement, which is what the harness is for. When #139 ships,
-put a prototype backed by `FlatNode` + `wellformed = :strict` behind the same
-conformance driver: 84 corpus items, 7501 assertions, the property layer and the
-fuzz campaign. What breaks and what it costs are then facts rather than
-positions, and this page can be rewritten from them.
+Nothing here forces the switch, and nothing here forbids it. The honest summary
+is that `XML.jl` at `:strict` **can** give the guarantees this package needs —
+that was the open question and it is answered — at a cost in throughput and in
+how early hostile input is refused.
 
-Until then the tokenizer stays because replacing it is a large change with no
-defect driving it — which is a reason to wait, not a reason to have been right.
+It also found three defects of ours, which is the return on the experiment
+regardless of the outcome: an `OMSTR` holding a C0 control was written as XML no
+conforming parser accepts, and a carriage return and a tab were lost to
+line-ending normalisation. All three are fixed, and none of them needed the
+migration to keep.
+
+What would settle it is a native rewrite measured the same way — not an adapter.
+Until someone wants that enough to do it, the tokenizer stays.
 
 ## Revisit if
 
