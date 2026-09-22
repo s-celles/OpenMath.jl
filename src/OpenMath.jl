@@ -37,9 +37,24 @@ include("validate.jl")
 include("passes.jl")
 include("show.jl")
 include("interface.jl")
+include("bytes.jl")
 include("base64.jl")
 include("recover.jl")
-include("xml/tokenizer.jl")
+# Decision D1 is re-opened (docs/src/design/xml-backend.md): `XML.jl` at
+# `wellformed = :strict` now refuses an undeclared entity reference, which was
+# the one argument for owning a tokenizer. Both backends present the same event
+# surface, so the three readers built on it are identical either way and a
+# comparison measures the tokenizer alone. `just xml-backend own|xmljl` switches.
+include("xml/backend.jl")
+
+include("xml/qname.jl")
+if XML_BACKEND === :own
+    include("xml/tokenizer.jl")
+elseif XML_BACKEND === :xmljl
+    include("xml/tokenizer_xmljl.jl")
+else
+    error("XML_BACKEND must be :own or :xmljl, got $(repr(XML_BACKEND))")
+end
 include("xml/reader.jl")
 include("xml/writer.jl")
 include("json/scanner.jl")

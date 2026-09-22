@@ -1,0 +1,6 @@
+source = "property p2b_write_stable, shrunk by Supposition"
+provenance = "shrunk-counterexample"
+tags = ["regression", "p2b_write_stable"]
+strict = true
+skip = []
+functional = "OMOBJ(OMSTR(\"\\r\"))"

@@ -2,9 +2,17 @@
 #
 # REQ-XML-001, REQ-XML-008, REQ-XML-009, REQ-SEC-001, REQ-API-007 — the pull
 # tokenizer for the OpenMath XML subset (standard §3.1). See decision D1 in
-# docs/src/design/xml-backend.md for why this is purpose-built.
+# docs/src/design/xml-backend.md, which is re-opened.
+#
+# These items are tagged `:own_tokenizer` because most of them test the
+# hand-written tokenizer's *internals* — the interning table, byte-level slicing,
+# the event offsets it computes. They are about an implementation, not about a
+# contract, so they do not apply to the `XML.jl` backend and are skipped when it
+# is selected. What both backends must agree on is tested through the readers, by
+# the conformance corpus and the property layer, which is where a contract
+# belongs.
 
-@testitem "tokenizer: elements and attributes" tags = [:unit, :xml] begin
+@testitem "tokenizer: elements and attributes" tags = [:unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!, XMLStartElement, XMLEndElement,
                     XMLCharacters, XMLDocumentEnd
     p = XMLPullParser("""<OMOBJ version="2.0" id='a'><OMI>42</OMI></OMOBJ>""")
@@ -25,7 +33,7 @@
     @test next_event!(p) isa XMLDocumentEnd
 end
 
-@testitem "tokenizer: self-closing elements" tags = [:unit, :xml] begin
+@testitem "tokenizer: self-closing elements" tags = [:unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!, XMLStartElement, XMLDocumentEnd
     p = XMLPullParser("""<OMS cd="arith1" name="plus"/>""")
     e = next_event!(p)
@@ -34,7 +42,8 @@ end
     @test next_event!(p) isa XMLDocumentEnd
 end
 
-@testitem "tokenizer: XML declaration, comments and PIs are skipped" tags = [:unit, :xml] begin
+@testitem "tokenizer: XML declaration, comments and PIs are skipped" tags = [
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!, XMLStartElement, XMLDocumentEnd
     p = XMLPullParser("""<?xml version="1.0"?><!-- a comment --><?target data?><OMI>1</OMI>""")
     e = next_event!(p)
@@ -42,27 +51,29 @@ end
     @test e.name == "OMI"
 end
 
-@testitem "tokenizer: predefined and numeric entities" tags = [:unit, :xml] begin
+@testitem "tokenizer: predefined and numeric entities" tags = [:unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!, XMLCharacters
     p = XMLPullParser("<OMSTR>&lt;&gt;&amp;&quot;&apos;&#65;&#x41;</OMSTR>")
     next_event!(p)
     @test next_event!(p).text == "<>&\"'AA"
 end
 
-@testitem "tokenizer: entities are expanded inside attribute values" tags = [:unit, :xml] begin
+@testitem "tokenizer: entities are expanded inside attribute values" tags = [
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!
     p = XMLPullParser("""<OMV name="a&amp;b"/>""")
     @test next_event!(p).attributes[1].value == "a&b"
 end
 
-@testitem "tokenizer: CDATA sections" tags = [:unit, :xml] begin
+@testitem "tokenizer: CDATA sections" tags = [:unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!
     p = XMLPullParser("<OMSTR><![CDATA[ raw < & > text ]]></OMSTR>")
     next_event!(p)
     @test next_event!(p).text == " raw < & > text "
 end
 
-@testitem "tokenizer: whitespace in character data is preserved" tags = [:unit, :xml] begin
+@testitem "tokenizer: whitespace in character data is preserved" tags = [
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!
     p = XMLPullParser("<OMSTR>  two  spaces\n</OMSTR>")
     next_event!(p)
@@ -70,7 +81,7 @@ end
 end
 
 @testitem "tokenizer: adjacent text, CDATA and entities merge into one event" tags = [
-    :unit, :xml] begin
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!, XMLCharacters, XMLEndElement
     p = XMLPullParser("<OMSTR>a<![CDATA[b]]>&amp;c</OMSTR>")
     next_event!(p)
@@ -80,7 +91,7 @@ end
     @test next_event!(p) isa XMLEndElement
 end
 
-@testitem "tokenizer: a DTD is rejected (REQ-XML-009)" tags = [:unit, :xml] begin
+@testitem "tokenizer: a DTD is rejected (REQ-XML-009)" tags = [:unit, :xml, :own_tokenizer] begin
     using OpenMath
     using OpenMath: XMLPullParser, next_event!
     for src in ("""<!DOCTYPE OMOBJ SYSTEM "om.dtd"><OMOBJ/>""",
@@ -98,7 +109,7 @@ end
     end
 end
 
-@testitem "tokenizer: an undeclared entity is rejected" tags = [:unit, :xml] begin
+@testitem "tokenizer: an undeclared entity is rejected" tags = [:unit, :xml, :own_tokenizer] begin
     using OpenMath
     using OpenMath: XMLPullParser, next_event!
     p = XMLPullParser("<OMSTR>&xxe;</OMSTR>")
@@ -114,7 +125,7 @@ end
 end
 
 @testitem "tokenizer: malformed input reports a byte offset (REQ-API-007)" tags = [
-    :unit, :xml] begin
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath
     using OpenMath: XMLPullParser, next_event!, XMLDocumentEnd
     for src in ("<OMI>1", "<OMI", "<OMS cd=arith1/>", "<OMI></OMF>", "<>", "<OMI>1</OMI")
@@ -132,7 +143,7 @@ end
 end
 
 @testitem "tokenizer: never throws anything but OpenMathError (REQ-SEC-001)" tags = [
-    :unit, :xml] begin
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath
     using OpenMath: XMLPullParser, next_event!, XMLDocumentEnd
     srcs = ["", "<", "</", "<!", "<!-", "<![CDATA[", "&", "&#", "&#x", "&#xZZ;",
@@ -152,7 +163,7 @@ end
 end
 
 @testitem "tokenizer: namespace prefixes are separated from local names" tags = [
-    :unit, :xml] begin
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath: XMLPullParser, next_event!, localname, prefix
     p = XMLPullParser("""<om:OMOBJ xmlns:om="http://www.openmath.org/OpenMath"/>""")
     e = next_event!(p)
@@ -164,7 +175,7 @@ end
 end
 
 @testitem "tokenizer: invalid UTF-8 is a parse error, not a Julia error (REQ-SEC-001)" tags = [
-    :unit, :xml] begin
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath
     # `"g\xe0\x80\x80"` is an overlong encoding of NUL: a byte sequence no
     # encoder should produce and every decoder will meet. The reader handed it
@@ -211,7 +222,7 @@ end
 end
 
 @testitem "tokenizer: a known name is returned shared, not allocated afresh" tags = [
-    :unit, :xml] begin
+    :unit, :xml, :own_tokenizer] begin
     using OpenMath
     using OpenMath: XMLPullParser, next_event!, XMLStartElement, _INTERNED_NAMES
     # Every element and attribute name was sliced into a *new* `String`, and

@@ -2,7 +2,12 @@
 
 @testitem "Aqua quality assurance" tags = [:quality] begin
     using Aqua, OpenMath
-    Aqua.test_all(OpenMath)
+    # `XML` is loaded only when the `xml_backend` preference selects the
+    # `XML.jl` tokenizer (decision D1), and the default is the hand-written one —
+    # so on a default build it is a declared dependency nothing imports, which is
+    # exactly what `stale_deps` is for. The conditional dependency is the
+    # experiment; the exemption goes away with whichever backend loses.
+    Aqua.test_all(OpenMath; stale_deps = (; ignore = [:XML]))
 end
 
 @testitem "every source file carries an SPDX header (REQ-PRJ-003)" tags = [:quality] begin
@@ -58,7 +63,10 @@ end
     # Direct dependencies stay few and are named here, so that adding one is a
     # deliberate edit to this list rather than a quiet resolve.
     direct = sort(collect(keys(get(project, "deps", Dict{String, Any}()))))
-    @test direct == ["PrecompileTools"]
+    # `XML` arrives with the re-opened decision D1 and is imported only when the
+    # `xmljl` backend is selected. It is pure Julia, which is what REQ-PRJ-002 is
+    # about; the count is not.
+    @test direct == ["PrecompileTools", "XML"]
 end
 
 @testitem "parsed content is never evaluated (REQ-SEC-005)" tags = [:quality] begin
