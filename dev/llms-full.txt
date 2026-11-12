@@ -451,7 +451,7 @@ each against the code and a test, rather than against the intention.
 | No unbounded allocation | every length field is checked against `max_bytes` before it is acted on | `invalid/binary-huge-length`, `test/unit/binary_reader.jl` |
 | No hang, nothing outside `OpenMathError` | — | P4b, P8, `just fuzz` at ~2 000 000 inputs |
 | Parsed content never reaches `eval` | — | a quality gate over `src/` **and `ext/`** |
-| No DTD or external entity | the tokenizer refuses `<!DOCTYPE` and `<!ENTITY` | `invalid/doctype`, `invalid/entity-declaration`, `invalid/undeclared-entity` |
+| No DTD or external entity | `XML.jl` reads at `wellformed = :strict`, which refuses an undeclared entity; the event layer over it refuses any `<!DOCTYPE` | `invalid/doctype`, `invalid/entity-declaration`, `invalid/undeclared-entity` |
 | Names never interned | by a **parser**; `to_julia` is the documented exception | the test above |
 
 Two of those rows were wrong when the review started.
@@ -474,17 +474,65 @@ intention and not of the reachable code.
 
 # Decision D1 — the XML backend
 
-**Status**: **re-opened 2026-09-21.** Settled 2026-09-17 on an argument that is
-no longer true. **Outcome for now**: the purpose-built pull tokenizer in
-`src/xml/tokenizer.jl` stays, on cost rather than on capability — see
-[What changed](#What-changed), which is the part of this page to read first.
+**Status**: **decided 2026-11-12 — XML parsing is done by `XML.jl`.** This
+package no longer carries an XML parser. Everything below the next section is the
+history of how it got there, kept because two of its arguments were wrong and the
+corrections are the useful part.
 
-**Update 2026-11-12**: the strict entity check this page waits on has shipped.
-`XML.jl` v0.4.7 (2026-11-02) carries #139, and on `XML.jl` v0.4.8 with Julia 1.13.3
-`XML.parse(XML.FlatNode, "<r>&xxe;</r>"; wellformed = :strict)` raises the §4.1
-error. [JuliaData/XML.jl#152](https://github.com/JuliaData/XML.jl/issues/152) is
-closed. The prototype comparison can now be run against a released version
-rather than `main`; until it is, the outcome above stands.
+## The decision
+
+`XML.jl` reads every document into a `FlatNode` store at `wellformed = :strict`.
+`src/xml/tokenizer.jl` is now a thin, lazy event stream over that store — the
+same events the three readers (OpenMath XML, Strict Content MathML, Content
+Dictionaries) always consumed, so none of them changed.
+
+**Why.** Maintaining an XML parser is not this package's job, and `XML.jl` is
+the Julia reference for it. The one argument for owning a tokenizer — that only
+an owned one could refuse an undeclared entity — stopped being true when
+`XML.jl` v0.4.7 shipped the strict check
+([JuliaData/XML.jl#152](https://github.com/JuliaData/XML.jl/issues/152)).
+
+**It is stricter than what it replaced.** Probed just before the switch, the
+hand-written tokenizer accepted seven ill-formed documents that `XML.jl`
+refuses: `--` inside a comment, attributes with no white space between them,
+`&#X41;`, `&#0;`, a raw U+0001, a reserved processing-instruction target, and
+`<?xml version="2.0"?>`. They are asserted in `test/unit/xml_wellformed.jl`.
+
+**What it costs**, measured with `just bench` on a 1601-node specimen, Julia
+1.13.3, `XML.jl` v0.4.8:
+
+| | hand-written tokenizer | `XML.jl` |
+|:--|--:|--:|
+| `read-xml` | 2.38 ms, 15.92 alloc/node | 2.87 ms, 16.31 alloc/node |
+| `read-mathml` | 2.61 ms, 22.02 alloc/node | 3.17 ms, 21.67 alloc/node |
+
+About 20 % slower, with the same allocation. The prototype of #6 was 3.4× slower
+because it flattened the whole store into a vector of events first; walking the
+store lazily is what removed that. Memory is about 12 bytes per source byte, and
+`max_bytes` is checked before parsing, so a hostile document is bounded before
+any tree exists.
+
+**What the event layer adds**, because this package promises more than
+well-formedness:
+
+- a document type declaration is refused outright (REQ-XML-009). `XML.jl`
+  accepts one and applies its internal subset, which is correct XML and a
+  weaker guarantee than `SECURITY.md` makes;
+- only `OpenMathError` escapes (REQ-SEC-001): `XML.jl`'s `ErrorException` and
+  `ArgumentError` are converted, message kept;
+- two `XML.jl` v0.4.8 defects are worked around — a reserved
+  processing-instruction target in upper or mixed case, and an end tag cut off
+  at the very end of the document, are both accepted at `:strict`. Both are in
+  `upstream-bugs.md`.
+
+**What it loses.** `XML.jl`'s well-formedness errors carry no position, so they
+report offset 1. Its tokenizer errors say "at position N", and that is used when
+present. Errors from the OpenMath grammar itself keep their exact offset, taken
+from each node's `sourcespan`.
+
+**Format detection** reads with a streaming `XML.Cursor` stopped at the first
+element, rather than with the event stream, which would parse every document
+twice.
 
 ## The candidates
 
