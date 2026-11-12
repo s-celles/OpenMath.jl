@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+XML = "72c71f33-b9b6-44de-8c94-c961784809e2"
 
 [weakdeps]
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
@@ -15,4 +16,5 @@ OpenMathSymbolicsExt = "Symbolics"
 [compat]
 PrecompileTools = "1"
 Symbolics = "5, 6, 7"
+XML = "0.4.7"
 julia = "1.10"

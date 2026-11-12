@@ -1,0 +1,7 @@
+source = "fuzz, seed 744025883"
+provenance = "shrunk-counterexample"
+tags = ["invalid", "fuzz"]
+strict = true
+expect_error = "OpenMathError"
+reason = ":recover produced an object that cannot be written: Base.InvalidCharError{Char}('\\xe4')"
+skip = []

@@ -226,3 +226,27 @@ end
     # a change of order, not of constant factor.
     @test elapsed < 60
 end
+
+@testitem "json reader: invalid UTF-8 is refused (RFC 8259 §8.1)" tags = [
+    :unit, :json, :recover] begin
+    using OpenMath
+    # Found by the fuzzer on 2026-11-12: a version string holding a lone 0xE4
+    # byte was accepted, and writing the object back as XML then raised a Julia
+    # `InvalidCharError` rather than an `OpenMathError` (REQ-SEC-001).
+    bad = "{\"kind\":\"OMOBJ\",\"openmath\":\"2.\xe4\",\"object\":{\"kind\":\"OMI\",\"integer\":1}}"
+    @test !isvalid(bad)
+    e = try
+        read_json(bad)
+        nothing
+    catch err
+        err
+    end
+    @test e isa OpenMath.OpenMathParseError
+    @test occursin("UTF-8", e.message)
+    @test e.offset == findfirst(==(0xe4), codeunits(bad))
+    # And `:recover` returns an object that can be written in every encoding.
+    obj = read_json(bad; mode = :recover)
+    @test obj isa OMObject
+    @test OpenMath.xml(obj) isa String
+    @test OpenMath.json(obj) isa String
+end

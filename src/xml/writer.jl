@@ -251,7 +251,7 @@ function _check_foreign(value::AbstractString)
         # well-formed there and is not a well-formed document. Construction is
         # inside the `try` because one tokenizer parses lazily and the other
         # parses in its constructor.
-        p = XMLPullParser("<x>" * String(value) * "</x>")
+        p = XMLPullParser(string("<x>", value, "</x>"))
         while !(next_event!(p) isa XMLDocumentEnd)
         end
     catch err

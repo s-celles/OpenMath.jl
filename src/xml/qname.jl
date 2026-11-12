@@ -13,7 +13,11 @@
 #
 # The check is one pass over the bytes and only on construction, so it costs a
 # scan of the input once rather than a branch at every character.
-function _check_utf8(text::String)
+#
+# JSON uses it too, with its own rule cited: RFC 8259 §8.1 requires JSON
+# exchanged between systems to be UTF-8.
+function _check_utf8(text::String,
+        rule::AbstractString = "XML 1.0 §2.2 admits only legal Unicode characters")
     isvalid(text) && return nothing
     # Report where, because "the document is not UTF-8" is not actionable on a
     # megabyte of it. Iterating with `pairs` decodes the same way the rest of
@@ -21,8 +25,7 @@ function _check_utf8(text::String)
     # that would have raised.
     for (i, c) in pairs(text)
         isvalid(c) || throw(OpenMathParseError(
-            "the input is not valid UTF-8; XML 1.0 §2.2 admits only legal " *
-            "Unicode characters"; offset = i))
+            "the input is not valid UTF-8; $(rule)"; offset = i))
     end
     throw(OpenMathParseError("the input is not valid UTF-8"; offset = 1))
 end

@@ -90,19 +90,24 @@ end
 function _looks_like_mathml(src::AbstractString)
     # The whole of this is a guess about which reader to call, so *nothing* here
     # may raise: the reader it chooses is where a malformed document gets its
-    # error, with the right message and, in `:recover`, no error at all. The
-    # tokenizer's construction is inside the `try` because it rejects invalid
-    # UTF-8, and that rejection escaping from a sniff would bypass `:recover`
-    # entirely — which is exactly what it did.
+    # error, with the right message and, in `:recover`, no error at all.
+    #
+    # A streaming `XML.Cursor`, stopped at the first element, rather than the
+    # readers' event stream: that one parses the whole document up front, so the
+    # sniff would read every document twice. The cursor checks no
+    # well-formedness, which a guess does not need.
+    text = String(src)::String
+    isvalid(text) || return false
     try
-        p = XMLPullParser(String(src))
-        ev = next_event!(p)
-        while !(ev isa XMLDocumentEnd)
-            ev isa XMLStartElement && return localname(ev.name) == "math"
-            ev = next_event!(p)
+        c = XML.Cursor(text)
+        while XML.next!(c) !== nothing
+            XML.nodetype(c) === XML.Element || continue
+            t = XML.tag(c)
+            return t !== nothing && localname(t) == "math"
         end
     catch err
-        err isa OpenMathError || rethrow()
+        (err isa ErrorException || err isa ArgumentError || err isa OpenMathError) ||
+            rethrow()
     end
     return false
 end

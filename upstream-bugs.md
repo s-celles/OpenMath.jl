@@ -865,3 +865,73 @@ each other on the wrong value, so a round-trip test cannot see it either.
 literal `&x;` with no signal. Declining to fetch is the right call — XXE follows
 directly from any retrieval — but the silence is the same failure shape as
 above. This probably belongs to #137 rather than to a report of its own.
+
+---
+
+## XML.jl 0.4.8 — a reserved processing-instruction target is accepted at `:strict` unless written in lower case
+
+- **Found**: 2026-11-12, moving XML parsing onto `XML.jl` (decision D1)
+- **Affected**: `XML.jl` v0.4.8; Julia 1.13.3
+- **Reported**: not yet
+- **Workaround**: the event layer refuses a processing instruction whose target
+  is `xml` in any case (`src/xml/tokenizer.jl`, `next_event!`); asserted in
+  `test/unit/xml_wellformed.jl`
+
+### Reproducer
+
+```julia
+julia> using XML
+
+julia> XML.parse("<r><?XML y?></r>", XML.Node; wellformed = :strict)   # also XmL, xML
+```
+
+### Expected / actual
+
+XML 1.0 (Fifth Edition) §2.6: `PITarget ::= Name - (('X' | 'x') ('M' | 'm') ('L' | 'l'))`.
+The exclusion is case-insensitive, so `XML`, `XmL` and `xML` are not targets, and
+the document is not well-formed. `XML.jl` accepts all three. Only the lower-case
+`<?xml y?>` is refused, and then as a misplaced XML declaration
+(`expected '=' after attribute name`) rather than as a reserved target.
+`xml-stylesheet` and `xmlfoo` are rightly accepted: names *beginning* with `xml`
+are reserved for standardisation, not excluded.
+
+---
+
+## XML.jl 0.4.8 — an end tag cut off at the very end of the document is accepted at `:strict`
+
+- **Found**: 2026-11-12, moving XML parsing onto `XML.jl` (decision D1)
+- **Affected**: `XML.jl` v0.4.8; Julia 1.13.3
+- **Reported**: not yet
+- **Workaround**: when an element closes, the event layer checks that its
+  `sourcespan` ends on `>` (`src/xml/tokenizer.jl`, `_check_closed`); asserted
+  by `test/unit/xml_tokenizer.jl`, "malformed input reports a byte offset"
+
+### Reproducer
+
+```julia
+julia> using XML
+
+julia> d = XML.parse("<a>1</a", XML.FlatNode; wellformed = :strict);
+
+julia> XML.write(XML.Node(d))
+"<a>1</a>"
+
+julia> XML.sourcespan(only(XML.children(d)))
+1:7
+```
+
+### Expected / actual
+
+`ETag ::= '</' Name S? '>'` (§3.1): the closing `>` is required, so the document
+is not well-formed. `XML.jl` accepts it, and writes it back with the `>` added.
+Only the end of the input is affected — `<a><b>1</b</a>` and `<a>1</a ` are both
+refused with a tokenizer error — and nested elements are too:
+`<a><b>1</b></a` is accepted the same way.
+
+### A related gap, not a defect
+
+`XML.jl`'s well-formedness errors are `ErrorException`s whose message gives no
+position (`Mismatched tags: expected </OMI>, got </OMOBJ>.`), while its tokenizer
+errors are `ArgumentError`s that do (`XML tokenizer error at position 9: …`).
+This package reports offset 1 for the first kind. A typed exception carrying the
+byte offset would let a caller point at the fault.

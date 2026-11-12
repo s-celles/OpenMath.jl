@@ -58,7 +58,9 @@ end
     # Direct dependencies stay few and are named here, so that adding one is a
     # deliberate edit to this list rather than a quiet resolve.
     direct = sort(collect(keys(get(project, "deps", Dict{String, Any}()))))
-    @test direct == ["PrecompileTools"]
+    # `XML` since decision D1 moved XML parsing out of this package: pure Julia,
+    # with no mandatory dependency of its own.
+    @test direct == ["PrecompileTools", "XML"]
 end
 
 @testitem "parsed content is never evaluated (REQ-SEC-005)" tags = [:quality] begin
