@@ -463,6 +463,11 @@ manual review.
 
 ### Changed
 
+- `upstream-bugs.md`: the two `XML.jl` v0.4.8 entries now point upstream. The
+  reserved processing-instruction target was already reported (XML.jl#218) and
+  is fixed on its `main`; the truncated end tag is reported as XML.jl#250; the
+  missing error position is XML.jl#155.
+
 - **`from_openmath` is renamed `to_julia`**, so the conversion pair reads
   `to_openmath` / `to_julia`: both names say where the value goes. Nothing has
   been released, so there is no deprecated alias; code calling `from_openmath`
