@@ -798,7 +798,7 @@ from an upstream fault until the signature was read.
 
 ---
 
-## XML.jl 0.4.6 — an undeclared entity reference is accepted as literal text
+## XML.jl 0.4.6 — an undeclared entity reference is accepted as literal text (fixed in 0.4.7)
 
 - **Found**: 2026-09-17, deciding roadmap decision D1; re-verified 2026-09-20
 - **Affected**: `XML.jl` v0.4.6 (latest release) **and** `main` at tree hash
@@ -811,15 +811,19 @@ from an upstream fault until the signature was read.
   error on both `Node` and `FlatNode`. #139 brings it to the next release. What
   v0.4.6 lacks is entity handling at *any* level, which is a narrower statement
   than the one filed.
-  **Answered 2026-09-21, and the report was partly wrong.** `XML.jl` has three
-  well-formedness levels and always did; this investigation never passed one, so
-  it tested the default and reported it as the whole behaviour. On `main` at
-  `1681e21`, `wellformed = :strict` rejects the reference with the §4.1 fatal
-  error on both `Node` and `FlatNode`. #139 brings it to the next release. What
-  v0.4.6 lacks is entity handling at *any* level, which is a narrower statement
-  than the one filed
-- **Workaround**: none possible downstream. This package owns its XML tokenizer
-  (`src/xml/tokenizer.jl`) for this reason; see `docs/src/design/xml-backend.md`
+- **Status**: **fixed in `XML.jl` v0.4.7** (released 2026-11-02); issue closed
+  2026-10-19. Re-verified 2026-11-12 against `XML.jl` v0.4.8, Julia 1.13.3:
+  `wellformed = :strict` rejects `<r>&xxe;</r>` with `not well-formed: reference
+  to undeclared entity "&xxe;" (XML 1.0 §4.1)` on both `Node` and `FlatNode`, and
+  an internally declared entity is expanded. The default level (`:structural`)
+  still accepts the reference, by the maintainer's design and with our agreement.
+  **Still open**: an entity declared in an *external* subset reads as literal
+  text at every level with no signal (`&x;` writes back as `&amp;x;`); that is
+  JuliaData/XML.jl#137, see "A smaller, related point" below.
+- **Workaround**: none was possible downstream on v0.4.6. This package owns its
+  XML tokenizer (`src/xml/tokenizer.jl`); whether to keep it now that `XML.jl`
+  v0.4.7 can refuse the reference is decision D1, see
+  `docs/src/design/xml-backend.md`.
 
 ### Reproducer
 

@@ -5,6 +5,13 @@ no longer true. **Outcome for now**: the purpose-built pull tokenizer in
 `src/xml/tokenizer.jl` stays, on cost rather than on capability — see
 [What changed](#What-changed), which is the part of this page to read first.
 
+**Update 2026-11-12**: the strict entity check this page waits on has shipped.
+`XML.jl` v0.4.7 (2026-11-02) carries #139, and on `XML.jl` v0.4.8 with Julia 1.13.3
+`XML.parse(XML.FlatNode, "<r>&xxe;</r>"; wellformed = :strict)` raises the §4.1
+error. [JuliaData/XML.jl#152](https://github.com/JuliaData/XML.jl/issues/152) is
+closed. The prototype comparison can now be run against a released version
+rather than `main`; until it is, the outcome above stands.
+
 ## The candidates
 
 | Option | Mandatory dependency |

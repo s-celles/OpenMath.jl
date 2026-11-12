@@ -463,6 +463,12 @@ manual review.
 
 ### Changed
 
+- `upstream-bugs.md`: the `XML.jl` undeclared-entity entry is marked **fixed in
+  `XML.jl` v0.4.7**, re-verified against v0.4.8, and a paragraph that appeared
+  twice is removed. The external-subset case is still open upstream (#137).
+  `docs/src/design/xml-backend.md` records that the strict check D1 was waiting
+  on has shipped.
+
 - **Decision D1 is re-opened.** `docs/src/design/xml-backend.md` rested on one
   argument — an undeclared entity reference must be a fatal error, and only a
   tokenizer we own can decide that. It is false. `XML.jl` has three
