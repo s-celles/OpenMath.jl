@@ -92,12 +92,10 @@ function _cderr(msg::AbstractString, at::Union{Nothing, Int} = nothing)
 end
 
 # Capture the full source of the element whose start tag was just returned,
-# including its own tags, and leave the parser positioned after it.
-function _element_source(p::XMLPullParser, ev::XMLStartElement)
-    ev.selfclosed && return _slice(p.data, ev.offset, p.pos - 1)
-    read_raw_until_end!(p, ev.name)
-    return _slice(p.data, ev.offset, p.pos - 1)
-end
+# including its own tags, and leave the parser positioned after it. The
+# tokenizer owns how that is computed — this used to read `p.data` and `p.pos`,
+# which only worked because one particular tokenizer tracked a byte position.
+_element_source(p::XMLPullParser, ev::XMLStartElement) = element_source!(p, ev)
 
 function _maybe_file(source::AbstractString, ext::AbstractString)
     (endswith(source, ext) && isfile(source)) ? read(source, String) : String(source)

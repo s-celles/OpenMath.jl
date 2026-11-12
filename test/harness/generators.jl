@@ -192,4 +192,41 @@ function diversity(gen, n::Int)
     return counts
 end
 
+"""
+    xml_representable(obj) -> Bool
+
+Whether every character in `obj` is one XML 1.0 §2.2 admits.
+
+A C0 control other than tab, newline and carriage return is not a legal XML
+character and XML has no escape for one, so a string holding one has no XML
+representation at all. JSON and the binary encoding carry it exactly.
+
+This exists because the properties about XML used to assume every generated
+object round-trips through it. They passed for a year while the writer emitted a
+raw NUL and the reader read it back — the two agreed with each other, and the
+document was one no conforming XML parser would accept. `docs/src/round-trip.md`
+lists the loss; `test/unit/xml_writer.jl` checks the refusal is exact.
+"""
+function xml_representable(x)
+    for n in OpenMath.collect_nodes(x)
+        text = if n isa OpenMath.OMString
+            n.value
+        elseif n isa OpenMath.OMVariable
+            n.name
+        elseif n isa OpenMath.OMForeign
+            n.value
+        else
+            continue
+        end
+        for c in text
+            u = UInt32(c)
+            ok = u == 0x09 || u == 0x0a || u == 0x0d ||
+                 (0x20 <= u <= 0xd7ff) || (0xe000 <= u <= 0xfffd) ||
+                 (0x10000 <= u <= 0x10ffff)
+            ok || return false
+        end
+    end
+    return true
+end
+
 end # module
