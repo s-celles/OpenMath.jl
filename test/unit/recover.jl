@@ -62,6 +62,34 @@ end
     end
 end
 
+@testitem "recover: a root that is only a fragment of an object never throws" tags = [
+    :unit, :recover] begin
+    using OpenMath
+    # Found by JET 0.13 on Julia 1.13.3. A root that is not `<OMOBJ>` (or
+    # `<math>`) is wrapped into a document — but `<OMATP>`, `<OMBVAR>` and a
+    # MathML `<bvar>` read into internal groups that are not objects at all, and
+    # wrapping one raised a `MethodError` from the `OMObject` constructor, which
+    # `:recover` does not catch because it is not a parse error.
+    om = """ xmlns="http://www.openmath.org/OpenMath\""""
+    mml = """ xmlns="http://www.w3.org/1998/Math/MathML\""""
+    cases = [
+        (:xml, "<OMATP$(om)><OMS cd=\"a\" name=\"b\"/><OMI>1</OMI></OMATP>"),
+        (:xml, "<OMBVAR$(om)><OMV name=\"x\"/></OMBVAR>"),
+        (:mathml, "<bvar$(mml)><ci>x</ci></bvar>")
+    ]
+    for (format, src) in cases
+        obj = OpenMath.parse(src; format, mode = :recover)
+        @test "$(first(src, 12)): $(obj isa OMObject ? "an object" : "not")" ==
+              "$(first(src, 12)): an object"
+        @test obj.object isa OMError
+        @test length(obj.warnings) == 1
+        # The reason given is the real one, not a constructor failure.
+        @test occursin("document element", only(obj.warnings))
+        # A fragment root still throws a *parse* error outside `:recover`.
+        @test_throws OpenMath.OpenMathParseError OpenMath.parse(src; format)
+    end
+end
+
 @testitem "recover: a resource limit still throws" tags = [:unit, :recover] begin
     using OpenMath
     # Deliberately *not* recovered. Limits exist to stop work on hostile input;

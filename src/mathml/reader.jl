@@ -175,6 +175,8 @@ function _read_mathml(src::AbstractString, mode::Symbol, strict::Bool)
     if !(result isa OMObject)
         err = OpenMathParseError("the document element must be <math>"; offset = 1)
         mode === :recover || throw(err)
+        # A `<bvar>` root reads into an internal group, not an object.
+        result isa OMNode || return recovered_document(sprint(showerror, err))
         return OMObject(result, "2.0", nothing, nothing, [sprint(showerror, err)])
     end
     return result

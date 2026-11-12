@@ -512,6 +512,16 @@ manual review.
 
 ### Fixed
 
+- `:recover` no longer throws on a document whose root is `<OMATP>`, `<OMBVAR>`
+  or a MathML `<bvar>`. Those read into internal groups rather than objects, and
+  wrapping one in an `OMObject` raised a `MethodError` — which `:recover` does
+  not catch, breaking its "never raises on a malformed document" contract. Such
+  a document now recovers to an error object. Found by JET 0.13.
+- The test environment resolves again on Julia 1.13.3: `test/Project.toml`
+  allowed JET `0.9, 0.10` only, and the registry now restricts Julia 1.13 to
+  JET 0.12–0.13, so CI on 1.13 and the scheduled fuzz job failed before running
+  a test. CompatHelper watches the root `Project.toml` only, so it did not see
+  this one.
 - **The conformance page printed a number only the machine that generated it
   had.** It said "342 further items are harvested", counted from a local
   `refs/corpus-fetch` clone — so the page claiming to report *what a clean

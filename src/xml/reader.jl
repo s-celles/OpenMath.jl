@@ -230,6 +230,9 @@ function _read_xml(src::AbstractString, mode::Symbol)
         mode === :recover || throw(err)
         # The root is not an OMOBJ, but what was read is still an object: wrap it
         # rather than discarding a document that only got its envelope wrong.
+        # `<OMATP>` and `<OMBVAR>` read into internal groups that are not
+        # objects, so a root that is one of them has nothing to keep.
+        result isa OMNode || return recovered_document(sprint(showerror, err))
         return OMObject(result, "2.0", nothing, nothing,
             [sprint(showerror, err)])
     end
