@@ -44,7 +44,7 @@ Julia never garbage-collects interned `Symbol`s. Turning attacker-controlled
 names from a parsed document into symbols would be an unbounded memory leak, so
 [`OMVariable`](@ref) and [`OMSymbol`](@ref) hold `String`s.
 
-`from_openmath` is the exception, and it is deliberate: `Symbol` is the right
+`to_julia` is the exception, and it is deliberate: `Symbol` is the right
 Julia value for a variable, and the conversion is something a caller asks for
 rather than something a document triggers. A service that decodes untrusted
 OpenMath and converts it will intern every distinct name it receives, so if that
@@ -99,7 +99,7 @@ each against the code and a test, rather than against the intention.
 | No hang, nothing outside `OpenMathError` | — | P4b, P8, `just fuzz` at ~2 000 000 inputs |
 | Parsed content never reaches `eval` | — | a quality gate over `src/` **and `ext/`** |
 | No DTD or external entity | the tokenizer refuses `<!DOCTYPE` and `<!ENTITY` | `invalid/doctype`, `invalid/entity-declaration`, `invalid/undeclared-entity` |
-| Names never interned | by a **parser**; `from_openmath` is the documented exception | the test above |
+| Names never interned | by a **parser**; `to_julia` is the documented exception | the test above |
 
 Two of those rows were wrong when the review started.
 
@@ -108,7 +108,7 @@ place in this package that turns an OpenMath symbol into a call, and it sat
 outside the gate. It was clean, and it was clean unwatched.
 
 **"Names are never interned" was stated without its exception.** Decoding interns
-nothing, which is what the object model is for; `from_openmath` interns, which is
+nothing, which is what the object model is for; `to_julia` interns, which is
 the natural thing for a caller to invoke next. The claim now says *by a parser*,
 and the exception has a remedy, a test and a paragraph in `SECURITY.md`.
 

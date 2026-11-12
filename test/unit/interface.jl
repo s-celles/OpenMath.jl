@@ -16,7 +16,7 @@ end
     using OpenMath
     @test to_openmath(true) == OMSymbol("logic1", "true")
     @test to_openmath(false) == OMSymbol("logic1", "false")
-    @test from_openmath(to_openmath(true)) === true
+    @test to_julia(to_openmath(true)) === true
 end
 
 @testitem "rationals and complexes map to nums1" tags = [:unit, :convert] begin
@@ -43,14 +43,14 @@ end
 @testitem "special float values survive conversion" tags = [:unit, :convert] begin
     using OpenMath
     for x in (NaN, Inf, -Inf, 0.0, -0.0, 1e308, 5.0e-324)
-        @test from_openmath(to_openmath(x)) === x
+        @test to_julia(to_openmath(x)) === x
     end
 end
 
 @testitem "round-trip through the interface" tags = [:unit, :convert] begin
     using OpenMath
     for x in (0, 1, -1, typemax(Int64), BigInt(2)^200, "text", 3 // 4, [1, 2, 3])
-        @test from_openmath(to_openmath(x)) == x
+        @test to_julia(to_openmath(x)) == x
     end
 end
 
@@ -80,4 +80,14 @@ end
     end
     @test e isa OpenMath.OpenMathConversionError
     @test occursin("Unconvertible", sprint(showerror, e))
+end
+
+@testitem "the conversion pair is to_openmath / to_julia" tags = [:unit, :convert] begin
+    using OpenMath
+    # Both names say where the value goes. `from_openmath` was the earlier name
+    # of `to_julia`, renamed before any release, so it has no deprecated alias.
+    @test :to_openmath in names(OpenMath)
+    @test :to_julia in names(OpenMath)
+    @test !isdefined(OpenMath, :from_openmath)
+    @test to_julia(Float64, OMInteger(7)) === 7.0
 end

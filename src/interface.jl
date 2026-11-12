@@ -26,24 +26,28 @@ OMA(OMS(http://example.org/cd#units#celsius), OMF(21.5))
 function to_openmath end
 
 """
-    from_openmath(x) -> Any
-    from_openmath(::Type{T}, x) -> T
+    to_julia(x) -> Any
+    to_julia(::Type{T}, x) -> T
 
 The Julia value denoted by the OpenMath object `x`, using the built-in
 correspondence. Extend by dispatch alongside [`to_openmath`](@ref).
+
+Deliberately not a `Base.convert` method: Julia calls `convert` implicitly, when
+a typed field or container is filled, so an object read from an untrusted source
+could be converted without anyone asking for it.
 
 # Examples
 ```jldoctest
 julia> using OpenMath
 
-julia> from_openmath(OMInteger(7))
+julia> to_julia(OMInteger(7))
 7
 
-julia> from_openmath(Float64, OMInteger(7))
+julia> to_julia(Float64, OMInteger(7))
 7.0
 ```
 """
-function from_openmath end
+function to_julia end
 
 to_openmath(x::OMNode) = x
 
@@ -85,23 +89,23 @@ end
 
 # --- back ---------------------------------------------------------------------
 
-from_openmath(x::OMInteger) = x.value
-from_openmath(x::OMFloat) = x.value
-from_openmath(x::OMString) = x.value
-from_openmath(x::OMBytes) = x.value
-from_openmath(x::OMVariable) = Symbol(x.name)
-from_openmath(x::OMObject) = from_openmath(x.object)
+to_julia(x::OMInteger) = x.value
+to_julia(x::OMFloat) = x.value
+to_julia(x::OMString) = x.value
+to_julia(x::OMBytes) = x.value
+to_julia(x::OMVariable) = Symbol(x.name)
+to_julia(x::OMObject) = to_julia(x.object)
 
 # Symbols and applications are where a *vocabulary* is needed rather than a type
 # correspondence, so both go through the phrasebook in force. That is what makes
-# the vocabulary replaceable (REQ-PHR-001) without `from_openmath` growing a
+# the vocabulary replaceable (REQ-PHR-001) without `to_julia` growing a
 # keyword argument that every caller would have to thread through.
-from_openmath(x::OMSymbol) = interpret(current_phrasebook(), x)
-from_openmath(x::OMApplication) = interpret(current_phrasebook(), x)
+to_julia(x::OMSymbol) = interpret(current_phrasebook(), x)
+to_julia(x::OMApplication) = interpret(current_phrasebook(), x)
 
-function from_openmath(x::Union{OMOrForeign, OMObject})
+function to_julia(x::Union{OMOrForeign, OMObject})
     throw(OpenMathConversionError(typeof(x),
-        "no from_openmath method for $(kind(x))"))
+        "no to_julia method for $(kind(x))"))
 end
 
-from_openmath(::Type{T}, x) where {T} = convert(T, from_openmath(x))
+to_julia(::Type{T}, x) where {T} = convert(T, to_julia(x))

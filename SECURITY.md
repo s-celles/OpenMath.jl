@@ -46,7 +46,7 @@ The following are **not** vulnerabilities:
 - A semantically meaningless but well-formed OpenMath object. This package
   transports mathematics; it does not evaluate or trust it.
 
-- **`from_openmath` interning a variable name.** It is a conversion the caller
+- **`to_julia` interning a variable name.** It is a conversion the caller
   invokes deliberately, not a parser entry point, and `Symbol` is the right Julia
   value for a variable in ordinary use. But a service that decodes untrusted
   OpenMath *and then converts it* will intern every distinct name it is sent, and

@@ -191,7 +191,7 @@ bug), `just quality` and `just docs` are green, CI is green on 1.10 and 1.13.
       `expand_references`, `share_structure`, `canonicalize` (§2.5).
 - [x] `src/limits.jl` — `OPENMATH_MAX_DEPTH/NODES/BYTES`; all traversals use an
       **explicit stack**, no native recursion (§5.4).
-- [x] `src/interface.jl` — `to_openmath` / `from_openmath`, `OMWriter` abstract type and
+- [x] `src/interface.jl` — `to_openmath` / `to_julia`, `OMWriter` abstract type and
       the `write_*!` verbs (§3.2), `TreeWriter`.
 - [x] Callable `OMSymbol` (§5.2).
 - [x] Harness: `gen_node`, `gen_object`; properties **P1**, **P4**, **P5**, **P7**.
@@ -521,7 +521,7 @@ dictionaries' own examples.
       ships as an extension — half of decision **D5**, settled by the survey.
 - [x] `src/phrasebook/core.jl` — `Phrasebook`, forward/backward maps keyed on
       `(cdbase, cd, name)`, `with_phrasebook` scoped default, `interpret` and
-      `express`. `from_openmath` now routes symbols and applications through the
+      `express`. `to_julia` now routes symbols and applications through the
       phrasebook in force, so the vocabulary is replaceable without a keyword
       argument threaded through every caller.
 - [x] `src/phrasebook/base.jl` — 87 symbols across `arith1`, `transc1`,
@@ -867,7 +867,7 @@ project.
       no-`eval` gate walked `src/` and not `ext/`, so the one place in this
       package that turns an OpenMath symbol into a call sat outside it; and
       "names are never interned" omitted its exception — decoding interns
-      nothing, `from_openmath` interns, and a service that does both will intern
+      nothing, `to_julia` interns, and a service that does both will intern
       every distinct name it is sent. The claim now says *by a parser*, and the
       exception has a remedy, a test and a paragraph in `SECURITY.md`.
 
