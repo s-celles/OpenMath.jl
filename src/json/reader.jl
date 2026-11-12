@@ -84,7 +84,10 @@ function read_json(src::AbstractString; mode::Symbol = :strict)
 end
 
 function _read_json(src::AbstractString, mode::Symbol)
-    value = scan_json(src)
+    text = String(src)::String
+    # Strings are kept as read, so a malformed byte would reach every writer.
+    _check_utf8(text, "RFC 8259 §8.1 requires JSON to be UTF-8")
+    value = scan_json(text)
     obj = _members(value)
     obj === nothing && _jperr(_JROOT, "the document must be a JSON object")
     kind = _member(obj, "kind")

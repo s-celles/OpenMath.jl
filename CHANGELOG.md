@@ -524,6 +524,10 @@ manual review.
 
 ### Fixed
 
+- The JSON reader accepted invalid UTF-8 and kept it in strings, so writing the
+  object as XML raised a Julia `InvalidCharError` rather than an
+  `OpenMathError`. It is now refused when read, with the offset of the first bad
+  byte (RFC 8259 §8.1). Found by the fuzzer.
 - **An `OMSTR` holding a C0 control was written as XML no conforming parser
   accepts.** XML 1.0 §2.2 excludes every control below U+0020 except tab,
   newline and carriage return, and has no escape for what it excludes — `&#0;`
