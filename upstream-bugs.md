@@ -872,7 +872,10 @@ above. This probably belongs to #137 rather than to a report of its own.
 
 - **Found**: 2026-11-12, moving XML parsing onto `XML.jl` (decision D1)
 - **Affected**: `XML.jl` v0.4.8; Julia 1.13.3
-- **Reported**: not yet
+- **Reported**: already, as <https://github.com/JuliaData/XML.jl/issues/218>, by
+  the maintainer. **Fixed on `main`** (closed 2026-11-09), after v0.4.8; not
+  released yet. Verified 2026-11-12 on `main` at `bc827ff`: `<?XML y?>` and
+  `<?XmL y?>` are refused at `:strict`.
 - **Workaround**: the event layer refuses a processing instruction whose target
   is `xml` in any case (`src/xml/tokenizer.jl`, `next_event!`); asserted in
   `test/unit/xml_wellformed.jl`
@@ -900,8 +903,10 @@ are reserved for standardisation, not excluded.
 ## XML.jl 0.4.8 — an end tag cut off at the very end of the document is accepted at `:strict`
 
 - **Found**: 2026-11-12, moving XML parsing onto `XML.jl` (decision D1)
-- **Affected**: `XML.jl` v0.4.8; Julia 1.13.3
-- **Reported**: not yet
+- **Affected**: `XML.jl` v0.4.8 (latest release) **and** `main` at `bc827ff`;
+  Julia 1.13.3. `Node` and `FlatNode` alike. Control: expat 2.7.1 (Python 3.12)
+  refuses both reproducers with "unclosed token"
+- **Reported**: <https://github.com/JuliaData/XML.jl/issues/250>, 2026-11-12
 - **Workaround**: when an element closes, the event layer checks that its
   `sourcespan` ends on `>` (`src/xml/tokenizer.jl`, `_check_closed`); asserted
   by `test/unit/xml_tokenizer.jl`, "malformed input reports a byte offset"
@@ -934,4 +939,7 @@ refused with a tokenizer error — and nested elements are too:
 position (`Mismatched tags: expected </OMI>, got </OMOBJ>.`), while its tokenizer
 errors are `ArgumentError`s that do (`XML tokenizer error at position 9: …`).
 This package reports offset 1 for the first kind. A typed exception carrying the
-byte offset would let a caller point at the fault.
+byte offset would let a caller point at the fault. That is already proposed
+upstream as <https://github.com/JuliaData/XML.jl/issues/155> (`XML.ParseError`
+with a position, for a breaking release); this package's use case is
+[commented there](https://github.com/JuliaData/XML.jl/issues/155#issuecomment-6825586888).
