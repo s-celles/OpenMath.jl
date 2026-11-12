@@ -488,7 +488,15 @@ end
     leaf = Data.OneOf(Data.SampledFrom(vars),
         map(Num, Data.Integers(-8, 8)))
     unary = Data.SampledFrom([sin, cos, tan, exp, abs, sqrt, -, atan, tanh])
-    binary = Data.SampledFrom([+, *, /, max, min])
+    binary = Data.SampledFrom([+, *, max, min])
+    # `/` is generated separately, over a denominator that cannot be the constant
+    # 0. Dividing by it builds `1//0`, and `1//0 + -(1//0)` raises `DivideError`
+    # in Base's `Rational` arithmetic while the expression is being *built* —
+    # an expression that is not valid Julia, not a defect of this package. It
+    # failed CI on 2026-11-12 after hundreds of green runs, because reaching it
+    # takes two divisions by zero and a negation in one draw.
+    denominator = Data.OneOf(Data.SampledFrom(vars),
+        map(Num, Data.OneOf(Data.Integers(-8, -1), Data.Integers(1, 8))))
     # `^` is generated separately with a small non-negative exponent: Julia
     # refuses `2^-4` on integers, so a general binary `^` generates expressions
     # that are not valid Julia rather than exercising this package.
@@ -501,7 +509,8 @@ end
         b = map(t -> t[1](t[2][1], t[2][2]),
             Data.Pairs(binary, Data.Pairs(child, child)))
         pow = map(t -> t[1]^t[2], Data.Pairs(child, exponent))
-        return Data.OneOf(u, b, pow)
+        quotient = map(t -> t[1] / t[2], Data.Pairs(child, denominator))
+        return Data.OneOf(u, b, pow, quotient)
     end
     expressions = Data.Recursive(leaf, grow; max_layers = 3)
 
