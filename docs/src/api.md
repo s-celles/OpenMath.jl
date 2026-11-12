@@ -92,7 +92,7 @@ with_limits
 
 ```@docs
 to_openmath
-from_openmath
+to_julia
 ```
 
 ## Encodings

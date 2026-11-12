@@ -111,7 +111,7 @@ IEEE-754 `hex` form exactly when the decimal one would lose the value.
 
 ## Converting Julia values
 
-[`to_openmath`](@ref) and [`from_openmath`](@ref) are the extension points.
+[`to_openmath`](@ref) and [`to_julia`](@ref) are the extension points.
 
 ```jldoctest
 julia> using OpenMath
@@ -119,7 +119,7 @@ julia> using OpenMath
 julia> to_openmath(3 // 4)
 OMA(OMS(nums1#rational), OMI(3), OMI(4))
 
-julia> from_openmath(to_openmath([1, 2, 3]))
+julia> to_julia(to_openmath([1, 2, 3]))
 3-element Vector{Int64}:
  1
  2

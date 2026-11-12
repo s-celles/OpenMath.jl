@@ -124,7 +124,7 @@ end
     # vulnerability, and the object model honours that: every name is a `String`,
     # because Julia never garbage-collects an interned `Symbol`.
     #
-    # `from_openmath` is where that stops being true, and it is worth a test
+    # `to_julia` is where that stops being true, and it is worth a test
     # rather than a sentence. It is not a parser entry point — a caller invokes it
     # deliberately — but a service that parses untrusted OpenMath and converts it
     # is the obvious thing to write, and it interns every distinct variable name
@@ -136,7 +136,7 @@ end
     @test parsed isa OMVariable
     @test parsed.name isa String                 # parsing alone interns nothing
 
-    @test from_openmath(parsed) isa Symbol       # conversion does
+    @test to_julia(parsed) isa Symbol       # conversion does
 
     # And the remedy is one line, which is the reason `define_variable!` exists
     # and the reason this is a caveat rather than a defect.

@@ -199,7 +199,7 @@ manual review.
   `linalg2`, `list1`, `set1` and `s_data1` — **76 of MathML.jl's 85 element
   names, which is all of them that denote a symbol**. The correspondence is
   asserted element by element rather than described.
-- `from_openmath` now routes symbols and applications through the phrasebook in
+- `to_julia` now routes symbols and applications through the phrasebook in
   force, so the vocabulary is replaceable without a keyword argument threaded
   through every caller. Everything it interpreted before, it still interprets.
 - Interpretation is structural and never evaluates (REQ-PHR-003): a symbol name
@@ -433,7 +433,7 @@ manual review.
   `collapse_attributions`, `expand_references`, `strip_ids`, `canonicalize`.
 - Configurable, scoped resource limits (`OMLimits`, `limits`, `with_limits`)
   raising a catchable `OpenMathLimitError` instead of `StackOverflowError`.
-- Conversion interface `to_openmath` / `from_openmath` with built-in mappings for
+- Conversion interface `to_openmath` / `to_julia` with built-in mappings for
   integers, floats, strings, symbols, booleans, byte vectors, rationals,
   complexes, vectors and matrices.
 - Callable `OMSymbol` and the `OMS"cd#name"` string macro, validated at
@@ -462,6 +462,12 @@ manual review.
 - Task cards for Phase 2 in `specs/tasks/`.
 
 ### Changed
+
+- **`from_openmath` is renamed `to_julia`**, so the conversion pair reads
+  `to_openmath` / `to_julia`: both names say where the value goes. Nothing has
+  been released, so there is no deprecated alias; code calling `from_openmath`
+  must be updated. It stays an explicit function rather than a `Base.convert`
+  method, which Julia would call implicitly.
 
 - Byte helpers (`src/bytes.jl`) and the UTF-8 / qualified-name helpers
   (`src/xml/qname.jl`) are moved out of the XML tokenizer, and the Content
@@ -700,7 +706,7 @@ manual review.
   clean; it was clean unwatched.
 - `SECURITY.md` said "names are `String`, never `Symbol`" without its exception.
   Decoding a document interns nothing, which is what the object model is for, but
-  `from_openmath` interns — and a service that decodes untrusted OpenMath and
+  `to_julia` interns — and a service that decodes untrusted OpenMath and
   converts it will intern every distinct variable name it is sent, unreclaimably.
   The claim now says *by a parser*; the exception has a remedy
   (`define_variable!(p, identity)`), a test, and a paragraph of its own.

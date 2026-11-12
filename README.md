@@ -45,7 +45,7 @@ julia> canonicalize(e).applicant.cdbase
 julia> to_openmath(3 // 4)
 OMA(OMS(nums1#rational), OMI(3), OMI(4))
 
-julia> from_openmath(to_openmath([1, 2, 3]))
+julia> to_julia(to_openmath([1, 2, 3]))
 3-element Vector{Int64}:
  1
  2

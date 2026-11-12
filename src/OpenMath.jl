@@ -89,7 +89,7 @@ export isinternal, reference_target
 export OMLimits, limits, with_limits
 
 # Conversion
-export to_openmath, from_openmath
+export to_openmath, to_julia
 
 # Phrasebooks
 export Phrasebook, define!, define_variable!, define_leaf!, interpret, express

@@ -2,7 +2,7 @@
 
 A *phrasebook*, in OpenMath's own terminology, is the translation between
 OpenMath objects and the values of one particular system. This package already
-has a fixed one — [`to_openmath`](@ref) and [`from_openmath`](@ref), extended by
+has a fixed one — [`to_openmath`](@ref) and [`to_julia`](@ref), extended by
 dispatch — and Phase 6 turns it into a value you can carry, swap and scope, and
 adds a `Symbolics.jl` phrasebook on top of it.
 

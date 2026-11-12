@@ -33,7 +33,7 @@ end
     :unit, :phrasebook] begin
     using OpenMath
     p = Phrasebook()
-    # Everything `from_openmath` already knew, a fresh phrasebook knows.
+    # Everything `to_julia` already knew, a fresh phrasebook knows.
     @test interpret(p, OMInteger(42)) == 42
     @test interpret(p, OMFloat(1.5)) === 1.5
     @test interpret(p, OMString("hi")) == "hi"
@@ -48,16 +48,16 @@ end
     using OpenMath
     p = Phrasebook()
     define!(p, OMS"arith1#plus", (xs...) -> "intercepted")
-    @test from_openmath(OMS"arith1#plus"(OMInteger(1), OMInteger(2))) == 3
+    @test to_julia(OMS"arith1#plus"(OMInteger(1), OMInteger(2))) == 3
     @test with_phrasebook(p) do
-        from_openmath(OMS"arith1#plus"(OMInteger(1), OMInteger(2)))
+        to_julia(OMS"arith1#plus"(OMInteger(1), OMInteger(2)))
     end == "intercepted"
     # Restored, including when the body throws.
-    @test from_openmath(OMS"arith1#plus"(OMInteger(1), OMInteger(2))) == 3
+    @test to_julia(OMS"arith1#plus"(OMInteger(1), OMInteger(2))) == 3
     @test_throws ErrorException with_phrasebook(p) do
         error("boom")
     end
-    @test from_openmath(OMS"arith1#plus"(OMInteger(1), OMInteger(2))) == 3
+    @test to_julia(OMS"arith1#plus"(OMInteger(1), OMInteger(2))) == 3
 end
 
 @testitem "phrasebook: cdbase is part of the key (REQ-PHR-001)" tags = [

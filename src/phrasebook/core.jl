@@ -5,7 +5,7 @@
 #
 # A phrasebook is OpenMath's own word for the translation between objects and the
 # values of one particular system. This package already had a fixed one —
-# `to_openmath` and `from_openmath`, extended by dispatch — which is the right
+# `to_openmath` and `to_julia`, extended by dispatch — which is the right
 # default and the wrong *only* mechanism: two callers in one session may
 # legitimately disagree about what `nums1#rational` denotes, and a method table
 # cannot hold both readings at once. A `Phrasebook` is that translation as a
@@ -28,7 +28,7 @@
 The translation between OpenMath objects and Julia values, as a value.
 
 A fresh phrasebook contains the built-in vocabulary — the same correspondence
-[`from_openmath`](@ref) uses. Add to it with [`define!`](@ref), apply it with
+[`to_julia`](@ref) uses. Add to it with [`define!`](@ref), apply it with
 [`interpret`](@ref) and [`express`](@ref), and make it the default for a dynamic
 scope with [`with_phrasebook`](@ref).
 
@@ -257,7 +257,7 @@ julia> p = Phrasebook();
 julia> define!(p, OMS"arith1#plus", (xs...) -> :intercepted);
 
 julia> with_phrasebook(p) do
-           from_openmath(OMS"arith1#plus"(OMInteger(1), OMInteger(2)))
+           to_julia(OMS"arith1#plus"(OMInteger(1), OMInteger(2)))
        end
 :intercepted
 ```
