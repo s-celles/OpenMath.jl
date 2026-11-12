@@ -145,5 +145,5 @@ Two characters XML *does* admit were being lost the same way. A literal carriage
 return is normalised to a newline by any conforming parser (§2.11), and a
 literal tab, newline or carriage return inside an attribute value becomes a space
 (§3.3.3). Both are now written as character references, which those rules exempt,
-so they survive. Our own tokenizer did not normalise, so this too was invisible
-until something else read the output.
+so they survive. The tokenizer this package used to carry did not normalise, so
+this too was invisible until something else read the output.

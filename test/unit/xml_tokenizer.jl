@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: MIT
 #
-# REQ-XML-001, REQ-XML-008, REQ-XML-009, REQ-SEC-001, REQ-API-007 — the pull
-# tokenizer for the OpenMath XML subset (standard §3.1). See decision D1 in
-# docs/src/design/xml-backend.md for why this is purpose-built.
+# REQ-XML-001, REQ-XML-008, REQ-XML-009, REQ-SEC-001, REQ-API-007 — the XML
+# event stream the readers consume, built on `XML.jl` since decision D1
+# (docs/src/design/xml-backend.md). These items predate the switch and were kept
+# as they were, bar two that assumed errors surface lazily: they are the
+# contract the readers rely on, whoever does the parsing.
 
 @testitem "tokenizer: elements and attributes" tags = [:unit, :xml] begin
     using OpenMath: XMLPullParser, next_event!, XMLStartElement, XMLEndElement,
@@ -101,9 +103,10 @@ end
 @testitem "tokenizer: an undeclared entity is rejected" tags = [:unit, :xml] begin
     using OpenMath
     using OpenMath: XMLPullParser, next_event!
-    p = XMLPullParser("<OMSTR>&xxe;</OMSTR>")
-    next_event!(p)
+    # Refused when the document is read, which is now when the parser is built.
     e = try
+        p = XMLPullParser("<OMSTR>&xxe;</OMSTR>")
+        next_event!(p)
         next_event!(p)
         nothing
     catch err
@@ -118,8 +121,8 @@ end
     using OpenMath
     using OpenMath: XMLPullParser, next_event!, XMLDocumentEnd
     for src in ("<OMI>1", "<OMI", "<OMS cd=arith1/>", "<OMI></OMF>", "<>", "<OMI>1</OMI")
-        p = XMLPullParser(src)
         e = try
+            p = XMLPullParser(src)
             while !(next_event!(p) isa XMLDocumentEnd)
             end
             nothing

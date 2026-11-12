@@ -469,6 +469,16 @@ manual review.
   must be updated. It stays an explicit function rather than a `Base.convert`
   method, which Julia would call implicitly.
 
+- **XML is parsed by [`XML.jl`](https://github.com/JuliaData/XML.jl)**, which
+  becomes a dependency (`0.4.7` or later; pure Julia, no dependency of its
+  own). The hand-written tokenizer is gone: `src/xml/tokenizer.jl` is now a lazy
+  event stream over `XML.jl`'s `FlatNode` at `wellformed = :strict`, so the XML,
+  Strict Content MathML and Content Dictionary readers are unchanged. It still
+  refuses any DTD, and still raises nothing but `OpenMathError`. Reading XML or
+  MathML is about 20 % slower, with the same allocation. Errors that `XML.jl`
+  reports without a position now carry offset 1. Decision D1 is closed; see
+  `docs/src/design/xml-backend.md`.
+
 - Byte helpers (`src/bytes.jl`) and the UTF-8 / qualified-name helpers
   (`src/xml/qname.jl`) are moved out of the XML tokenizer, and the Content
   Dictionary parser no longer reads the tokenizer's position directly. The JSON
@@ -524,6 +534,10 @@ manual review.
 
 ### Fixed
 
+- Seven ill-formed XML documents were accepted, and are now refused: `--` in a
+  comment, attributes with no white space between them, `&#X41;`, `&#0;`, a raw
+  U+0001, a reserved processing-instruction target and
+  `<?xml version="2.0"?>`.
 - The JSON reader accepted invalid UTF-8 and kept it in strings, so writing the
   object as XML raised a Julia `InvalidCharError` rather than an
   `OpenMathError`. It is now refused when read, with the offset of the first bad
