@@ -109,3 +109,41 @@ Reading a float from us works.
 
 Everything else agrees: 36 of 36 values in the direction that decides whether
 this package is usable on an SCSCP wire.
+
+## A C0 control in a string has no XML representation
+
+XML 1.0 §2.2 gives the characters a document may contain:
+
+```
+Char ::= #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+```
+
+Tab, newline and carriage return are in; every other control below U+0020 is
+out, and **XML has no escape for what it excludes** — `&#0;` is as ill-formed as
+a raw NUL. So an `OMSTR` holding one cannot be written as XML at all, and the
+writer refuses it rather than producing a document no conforming parser will
+read.
+
+```jldoctest
+julia> using OpenMath
+
+julia> OpenMath.xml(OMObject(OMString("\0")))
+ERROR: OpenMathConversionError: U+0000 is not a character XML 1.0 §2.2 admits, and XML has no escape for one, so this string has no XML representation; the JSON and binary encodings carry it exactly (OMString)
+```
+
+JSON and the binary encoding carry such a string exactly, which is why this is a
+property of the encoding rather than of the object. Strict Content MathML is XML,
+so it inherits the limitation.
+
+**This was a defect, not a design.** The writer used to emit the control byte,
+and our own reader read it back — reader and writer shared the fault and agreed
+with each other, which is the one failure shape a round-trip test cannot see. It
+surfaced only when the package was put behind an independent parser, which
+refused to read what we had written; `expat` refuses it too.
+
+Two characters XML *does* admit were being lost the same way. A literal carriage
+return is normalised to a newline by any conforming parser (§2.11), and a
+literal tab, newline or carriage return inside an attribute value becomes a space
+(§3.3.3). Both are now written as character references, which those rules exempt,
+so they survive. Our own tokenizer did not normalise, so this too was invisible
+until something else read the output.

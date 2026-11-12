@@ -518,6 +518,19 @@ manual review.
 
 ### Fixed
 
+- **An `OMSTR` holding a C0 control was written as XML no conforming parser
+  accepts.** XML 1.0 §2.2 excludes every control below U+0020 except tab,
+  newline and carriage return, and has no escape for what it excludes — `&#0;`
+  is as ill-formed as a raw NUL. The writer emitted it anyway and our own reader
+  read it back, because reader and writer shared the fault and agreed with each
+  other. `expat` refuses the document. The writer now refuses the object, and
+  JSON and binary carry it exactly; see `docs/src/round-trip.md`.
+- **A carriage return, and a tab in an attribute value, did not survive the XML
+  round trip.** Any conforming parser normalises a literal CR to a newline
+  (§2.11) and a literal tab, newline or CR in an attribute value to a space
+  (§3.3.3). Both are now written as character references, which those rules
+  exempt. Our own tokenizer did not normalise, so this was invisible until
+  something else read the output — the `XML.jl` prototype of decision D1.
 - `:recover` no longer throws on a document whose root is `<OMATP>`, `<OMBVAR>`
   or a MathML `<bvar>`. Those read into internal groups rather than objects, and
   wrapping one in an `OMObject` raised a `MethodError` — which `:recover` does

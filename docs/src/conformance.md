@@ -18,7 +18,7 @@ binary encoding (§3.2), a JSON encoding (§3.3) and Strict Content MathML
 
 ## Corpus
 
-**84 of 84** corpus items conform.
+**85 of 85** corpus items conform.
 
 Each item is a directory carrying at least one encoding of one object. The
 driver decodes what the item carries, **derives every encoding it does not**
@@ -30,7 +30,7 @@ the item.
 |:--|--:|--:|--:|:--|
 | `invalid/` | 27 | 27 | 27 | ✅ |
 | `json/` | 14 | 0 | 14 | ✅ |
-| `regression/` | 4 | 0 | 4 | ✅ |
+| `regression/` | 5 | 0 | 5 | ✅ |
 | `standard/` | 39 | 0 | 39 | ✅ |
 
 ## Coverage per encoding
@@ -41,10 +41,10 @@ corpus had to store.
 
 | Encoding | Carried | Derived | Skipped | Covered | |
 |:--|--:|--:|--:|--:|--:|
-| `binary` | 5 | 78 | 1 | **83** | 99 % |
-| `json` | 14 | 69 | 1 | **83** | 99 % |
-| `mathml` | 0 | 83 | 1 | **83** | 99 % |
-| `xml` | 65 | 19 | 0 | **84** | 100 % |
+| `binary` | 5 | 79 | 1 | **84** | 99 % |
+| `json` | 14 | 70 | 1 | **84** | 99 % |
+| `mathml` | 0 | 84 | 1 | **84** | 99 % |
+| `xml` | 66 | 19 | 0 | **85** | 100 % |
 
 ## Failures
 

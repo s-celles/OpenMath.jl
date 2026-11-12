@@ -245,8 +245,13 @@ function _push_children!(stack::Vector{_Pending}, closing::String, kids::Vector{
 end
 
 function _check_foreign(value::AbstractString)
-    p = XMLPullParser(String(value))
     try
+        # Wrapped in a synthetic root, because this is a *fragment*: `OMFOREIGN`
+        # content is whatever sits between the tags, and "text" or "<a/><b/>" is
+        # well-formed there and is not a well-formed document. Construction is
+        # inside the `try` because one tokenizer parses lazily and the other
+        # parses in its constructor.
+        p = XMLPullParser("<x>" * String(value) * "</x>")
         while !(next_event!(p) isa XMLDocumentEnd)
         end
     catch err
@@ -276,7 +281,37 @@ end
 
 # --- escaping -----------------------------------------------------------------
 
+# XML 1.0 §2.2 gives the characters a document may contain:
+#
+#   Char ::= #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
+#
+# A C0 control other than tab, newline and carriage return is not among them,
+# and XML has no escape for one — `&#0;` is as ill-formed as a raw NUL. So an
+# `OMSTR` holding one has no XML representation at all, and this writer used to
+# emit it anyway: `OMSTR("\0")` produced a document that expat refuses and that
+# our own reader read back happily, because reader and writer shared the fault
+# and agreed with each other.
+#
+# Found by putting the package behind `XML.jl`, which refused to read what we
+# had written. JSON and the binary encoding carry such a string exactly; only
+# XML and the MathML encoding built on it cannot. See `docs/src/round-trip.md`.
+function _check_xml_char(c::Char)
+    u = UInt32(c)
+    ok = u == 0x09 || u == 0x0a || u == 0x0d ||
+         (0x20 <= u <= 0xd7ff) || (0xe000 <= u <= 0xfffd) ||
+         (0x10000 <= u <= 0x10ffff)
+    ok && return nothing
+    throw(OpenMathConversionError(OMString,
+        "U+" * uppercase(string(u; base = 16, pad = 4)) *
+        " is not a character XML 1.0 §2.2 admits, and XML has no escape for " *
+        "one, so this string has no XML representation; the JSON and binary " *
+        "encodings carry it exactly"))
+end
+
 function _escape_text(io::IO, s::AbstractString)
+    for c in s
+        _check_xml_char(c)
+    end
     n = 0
     for i in 1:ncodeunits(s)
         b = codeunit(s, i)
@@ -288,6 +323,13 @@ function _escape_text(io::IO, s::AbstractString)
             # Not strictly required outside "]]>", but escaping every '>' keeps
             # that sequence from ever appearing and costs nothing.
             n += write(io, "&gt;")
+        elseif b == UInt8('\r')
+            # XML 1.0 §2.11: a parser normalises a literal CR, and CRLF, to a
+            # single LF before the application sees it, so a raw carriage return
+            # does not survive the round trip. A character reference does — §2.11
+            # is about literal line breaks. Our own tokenizer did not normalise,
+            # so this was invisible until a conforming parser read the output.
+            n += write(io, "&#13;")
         else
             n += write(io, b)
         end
@@ -296,11 +338,19 @@ function _escape_text(io::IO, s::AbstractString)
 end
 
 function _escape_attribute(io::IO, s::AbstractString)
+    for c in s
+        _check_xml_char(c)
+    end
     n = 0
     for i in 1:ncodeunits(s)
         b = codeunit(s, i)
         if b == UInt8('&')
             n += write(io, "&amp;")
+        elseif b == UInt8('\r') || b == UInt8('\n') || b == UInt8('\t')
+            # XML 1.0 §3.3.3: attribute-value normalisation turns a literal tab,
+            # newline or carriage return into a space. A character reference is
+            # exempt, so it is the only spelling that survives.
+            n += write(io, "&#", string(Int(b)), ";")
         elseif b == UInt8('<')
             n += write(io, "&lt;")
         elseif b == UInt8('"')
