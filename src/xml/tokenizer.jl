@@ -59,48 +59,6 @@ function XMLPullParser(data::AbstractString)
     return XMLPullParser(text, 1, String[], false)
 end
 
-# XML 1.0 §2.2 requires every character in a document to be a legal Unicode
-# character, so a malformed byte sequence is a lexical error and saying so is
-# correct. Saying so *here* is what matters: the readers call `strip` on element
-# text, `strip` calls `isspace`, and `isspace` on an invalid `Char` raises
-# `Base.InvalidCharError` — a Julia exception escaping a parser that guarantees
-# only `OpenMathError` does (REQ-SEC-001).
-#
-# The check is one pass over the bytes and only on construction, so it costs a
-# scan of the input once rather than a branch at every character.
-function _check_utf8(text::String)
-    isvalid(text) && return nothing
-    # Report where, because "the document is not UTF-8" is not actionable on a
-    # megabyte of it. Iterating with `pairs` decodes the same way the rest of
-    # Julia will, so the first character it reports as invalid is the first one
-    # that would have raised.
-    for (i, c) in pairs(text)
-        isvalid(c) || throw(OpenMathParseError(
-            "the input is not valid UTF-8; XML 1.0 §2.2 admits only legal " *
-            "Unicode characters"; offset = i))
-    end
-    throw(OpenMathParseError("the input is not valid UTF-8"; offset = 1))
-end
-
-"""
-    localname(qname) -> String
-
-The part of a qualified XML name after the colon.
-"""
-function localname(q::AbstractString)
-    (i = findfirst(==(':'), q);
-        i === nothing ? String(q) : String(@view q[nextind(q, i):end]))
-end
-
-"""
-    prefix(qname) -> String
-
-The namespace prefix of a qualified XML name, or `""` when it has none.
-"""
-function prefix(q::AbstractString)
-    (i = findfirst(==(':'), q); i === nothing ? "" : String(@view q[1:prevind(q, i)]))
-end
-
 @inline _at(p::XMLPullParser) = ncodeunits(p.data)
 @inline _byte(p::XMLPullParser, i::Int) = codeunit(p.data, i)
 @inline _eof(p::XMLPullParser, i::Int = p.pos) = i > ncodeunits(p.data)
@@ -117,19 +75,6 @@ end
     end
     return true
 end
-
-@inline _is_space(b::UInt8) = b == 0x20 || b == 0x09 || b == 0x0a || b == 0x0d
-
-# Slice an inclusive *byte* range. `SubString` cannot be used here: it indexes by
-# character boundary, so `SubString(s, from, i - 1)` throws a StringIndexError
-# whenever the byte before `i` is a continuation byte — that is, on any
-# multi-byte character. Going through the code units is correct for every input,
-# including malformed UTF-8, which must pass through as opaque bytes rather than
-# throw (REQ-SEC-001).
-@inline _slice(s::String, from::Int, to::Int) = to < from ? "" :
-                                                String(@view codeunits(s)[from:to])
-
-@inline _byteview(s::String, from::Int, to::Int) = @view codeunits(s)[from:max(to, from - 1)]
 
 # XML NameStartChar/NameChar, restricted to what a byte scan can decide. Any byte
 # ≥ 0x80 is accepted here and rejected later by `checkname` if it reaches a name
@@ -433,6 +378,16 @@ The verbatim source between the current position and the end tag matching `name`
 honouring nesting. Used for `OMFOREIGN`, whose content is by definition not
 OpenMath and must survive untouched.
 """
+# The full source of the element whose start tag was just returned, its own tags
+# included, leaving the parser positioned after it. Backend-neutral: the Content
+# Dictionary parser used to compute this from `p.data` and `p.pos` directly,
+# which is a coupling to how a tokenizer happens to track position.
+function element_source!(p::XMLPullParser, ev::XMLStartElement)
+    ev.selfclosed && return _slice(p.data, ev.offset, p.pos - 1)
+    read_raw_until_end!(p, ev.name)
+    return _slice(p.data, ev.offset, p.pos - 1)
+end
+
 function read_raw_until_end!(p::XMLPullParser, name::AbstractString)
     start = p.pos
     depth = 1

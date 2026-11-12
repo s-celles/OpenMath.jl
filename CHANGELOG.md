@@ -463,6 +463,12 @@ manual review.
 
 ### Changed
 
+- Byte helpers (`src/bytes.jl`) and the UTF-8 / qualified-name helpers
+  (`src/xml/qname.jl`) are moved out of the XML tokenizer, and the Content
+  Dictionary parser no longer reads the tokenizer's position directly. The JSON
+  scanner and the CD parser depended on the tokenizer's internals, which would
+  have broken them when the tokenizer is replaced by `XML.jl` (decision D1).
+
 - `upstream-bugs.md`: the `XML.jl` undeclared-entity entry is marked **fixed in
   `XML.jl` v0.4.7**, re-verified against v0.4.8, and a paragraph that appeared
   twice is removed. The external-subset case is still open upstream (#137).
