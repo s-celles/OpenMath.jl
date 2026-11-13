@@ -57,10 +57,19 @@ jobs:
           # `--path` is required alongside `dirty`, which is the checked-out
           # working tree; without it `benchpkg` reports "Did not find rev dirty
           # in repository" and exits 1.
+          #
+          # Both revisions run *this branch's* suite, passed as `--script`.
+          # `--bench-on=dirty` means the same thing and is broken in
+          # AirspeedVelocity v0.6.6: with `--path` and no `--script` it sets
+          # `bench_on = nothing` and then calls `length` on it, so every run
+          # failed with `MethodError: no method matching length(::Nothing)`
+          # (MilesCranmer/AirspeedVelocity.jl#59; see upstream-bugs.md).
+          # `benchpkg` writes into `--output-dir` without creating it.
+          mkdir -p results
           benchpkg OpenMath \
             --rev="${{ github.event.pull_request.base.sha }},dirty" \
             --path=. \
-            --bench-on="dirty" \
+            --script="$GITHUB_WORKSPACE/benchmark/benchmarks.jl" \
             --output-dir=results \
             --exeflags="--threads=1"
           benchpkgtable OpenMath \
