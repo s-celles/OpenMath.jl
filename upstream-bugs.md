@@ -952,7 +952,8 @@ with a position, for a breaking release); this package's use case is
   workflow, which had failed on every pull request
 - **Affected**: `AirspeedVelocity` v0.6.6 (latest release); Julia 1.13.3
 - **Reported**: already, as <https://github.com/MilesCranmer/AirspeedVelocity.jl/issues/59>
-  (open since 2025-01-10)
+  (open since 2025-01-10). Fix proposed as
+  <https://github.com/MilesCranmer/AirspeedVelocity.jl/pull/166>, 2026-11-13
 - **Workaround**: `.github/workflows/Benchmark.yml` passes the suite as
   `--script=$GITHUB_WORKSPACE/benchmark/benchmarks.jl` instead of
   `--bench-on=dirty`, which is what the failing branch meant to do
