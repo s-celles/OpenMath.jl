@@ -948,3 +948,36 @@ byte offset would let a caller point at the fault. That is already proposed
 upstream as <https://github.com/JuliaData/XML.jl/issues/155> (`XML.ParseError`
 with a position, for a breaking release); this package's use case is
 [commented there](https://github.com/JuliaData/XML.jl/issues/155#issuecomment-6825586888).
+
+---
+
+## AirspeedVelocity 0.6.6 — `benchpkg --bench-on=dirty --path=…` fails with `length(::Nothing)`
+
+- **Found**: 2026-11-13, investigating the `compare` job of the Benchmark
+  workflow, which had failed on every pull request
+- **Affected**: `AirspeedVelocity` v0.6.6 (latest release); Julia 1.13.3
+- **Reported**: already, as <https://github.com/MilesCranmer/AirspeedVelocity.jl/issues/59>
+  (open since 2025-01-10). Fix proposed as
+  <https://github.com/MilesCranmer/AirspeedVelocity.jl/pull/166>, 2026-11-13
+- **Workaround**: `.github/workflows/Benchmark.yml` passes the suite as
+  `--script=$GITHUB_WORKSPACE/benchmark/benchmarks.jl` instead of
+  `--bench-on=dirty`, which is what the failing branch meant to do
+
+### Reproducer
+
+```console
+$ benchpkg OpenMath --rev="<base sha>,dirty" --path=. --bench-on=dirty
+ERROR: LoadError: MethodError: no method matching length(::Nothing)
+```
+
+### Expected / actual
+
+`src/BenchPkg.jl`: when `bench_on == "dirty"`, `path` is set and `script` is
+empty, `benchpkg` takes the script from the working tree and sets
+`bench_on = nothing`, then passes `length(bench_on) > 0 ? … : nothing` to
+`benchmark`. `length(nothing)` raises before any benchmark runs. Passing
+`--script` explicitly skips that branch, and both revisions then run the
+working tree's suite.
+
+`benchpkg` also writes into `--output-dir` without creating it; the workflow
+runs `mkdir -p results` first.
