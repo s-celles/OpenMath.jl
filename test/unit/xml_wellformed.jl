@@ -45,3 +45,27 @@ end
     @test obj.object isa OMError
     @test length(obj.warnings) == 1
 end
+
+@testitem "XML: a DTD is refused before its declarations are read" tags = [
+    :unit, :xml, :security] begin
+    using OpenMath
+    # Entities whose expansion is about 4 MiB: under `XML.jl`'s own bounds
+    # (8 MiB and 100× the document), so it would expand them. With
+    # `doctype = :refuse` the document is refused before any declaration is
+    # read, so refusing it costs nothing like the expansion (REQ-XML-009).
+    decls = "<!ENTITY e0 \"" * "a"^64 * "\">" *
+            join("<!ENTITY e$(i) \"" * "&e$(i - 1);"^4 * "\">" for i in 1:8)
+    src = "<!DOCTYPE OMOBJ [" * decls * "]><OMOBJ><OMSTR>&e8;</OMSTR></OMOBJ>"
+    refuse() =
+        try
+            read_xml(src)
+            nothing
+        catch err
+            err
+        end
+    e = refuse()
+    @test e isa OpenMath.OpenMathParseError
+    @test occursin("DOCTYPE", e.message)
+    refuse()                                   # compiled
+    @test @allocated(refuse()) < 1 << 20       # far below the 4 MiB expansion
+end

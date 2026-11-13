@@ -87,16 +87,16 @@ end
     using OpenMath: XMLPullParser, next_event!
     for src in ("""<!DOCTYPE OMOBJ SYSTEM "om.dtd"><OMOBJ/>""",
         """<!DOCTYPE x [<!ENTITY e "boom">]><OMOBJ/>""")
-        p = XMLPullParser(src)
+        # Refused when the document is read, which is when the parser is built.
         e = try
-            next_event!(p)
+            next_event!(XMLPullParser(src))
             nothing
         catch err
             err
         end
         @test e isa OpenMath.OpenMathParseError
         @test occursin("DOCTYPE", e.message) || occursin("entity", e.message)
-        @test e.offset !== nothing
+        @test e.offset == 1                    # where `<!DOCTYPE` starts
     end
 end
 

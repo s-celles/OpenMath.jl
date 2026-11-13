@@ -463,6 +463,13 @@ manual review.
 
 ### Changed
 
+- **`XML.jl` 0.4.9 or later is required.** A document with a DOCTYPE is now
+  refused by `XML.jl`'s `doctype = :refuse`, before any of its declarations is
+  read: refusing an internal subset whose entities expand to 4 MiB allocated
+  27 MB, and now allocates almost nothing. The workaround for reserved
+  processing-instruction targets is removed, since v0.4.9 refuses them itself
+  (XML.jl#218).
+
 - `upstream-bugs.md`: the two `XML.jl` v0.4.8 entries now point upstream. The
   reserved processing-instruction target was already reported (XML.jl#218) and
   is fixed on its `main`; the truncated end tag is reported as XML.jl#250; the

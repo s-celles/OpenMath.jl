@@ -41,14 +41,17 @@ any tree exists.
 **What the event layer adds**, because this package promises more than
 well-formedness:
 
-- a document type declaration is refused outright (REQ-XML-009). `XML.jl`
-  accepts one and applies its internal subset, which is correct XML and a
-  weaker guarantee than `SECURITY.md` makes;
+- a document type declaration is refused outright (REQ-XML-009), through
+  `XML.jl`'s `doctype = :refuse` (v0.4.9 and later): before any declaration is
+  read, so a hostile internal subset costs nothing to refuse. Without it,
+  `XML.jl` reads the subset and applies it, which is correct XML and a weaker
+  guarantee than `SECURITY.md` makes;
 - only `OpenMathError` escapes (REQ-SEC-001): `XML.jl`'s `ErrorException` and
   `ArgumentError` are converted, message kept;
-- two `XML.jl` v0.4.8 defects are worked around — a reserved
-  processing-instruction target in upper or mixed case, and an end tag cut off
-  at the very end of the document, are both accepted at `:strict`. Both are in
+- one `XML.jl` defect is worked around: an end tag cut off at the very end of
+  the document is accepted ([JuliaData/XML.jl#250](https://github.com/JuliaData/XML.jl/issues/250)).
+  A second, a reserved processing-instruction target in upper or mixed case,
+  was worked around until `XML.jl` v0.4.9 fixed it. Both are in
   `upstream-bugs.md`.
 
 **What it loses.** `XML.jl`'s well-formedness errors carry no position, so they
