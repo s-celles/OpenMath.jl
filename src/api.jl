@@ -26,7 +26,7 @@ julia> o = OpenMath.parse(\"\"\"
            </OMOBJ>\"\"\");
 
 julia> o.object
-OMA(OMS(arith1#plus), OMI(1), OMV(x))
+1 + \$x
 ```
 """
 function parse(src::AbstractString; format::Symbol = :auto, mode::Symbol = :strict,

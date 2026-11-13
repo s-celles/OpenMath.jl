@@ -328,3 +328,31 @@ function _pop_infix_pieces(op::_PopInfix, key::Tuple{String, String}, args)
     end
     return pieces
 end
+
+# ------------------------------------------------------------- text/plain ---
+#
+# What the REPL shows (REQ-POP-003): Popcorn, which is what a person reads, but
+# only when it shows the whole object. Popcorn has no syntax for `cdbase` or for
+# an `OMFOREIGN` encoding, and a display that silently drops either would show a
+# different object from the one held; those fall back to the functional form,
+# which carries both. The two-argument `show` — used by `repr`, inside
+# containers, in string interpolation — stays the functional form throughout.
+
+function Base.show(io::IO, ::MIME"text/plain", x::OMNode)
+    _popcorn_shows_all(x) ? write_popcorn(io, x) : show(io, x)
+    return nothing
+end
+
+function _popcorn_shows_all(root::OMNode)
+    stack = OMOrForeign[root]
+    while !isempty(stack)
+        n = pop!(stack)
+        if n isa OMForeign
+            n.encoding === nothing || return false
+            continue
+        end
+        hasfield(typeof(n), :cdbase) && getfield(n, :cdbase) !== nothing && return false
+        append!(stack, children(n))
+    end
+    return true
+end

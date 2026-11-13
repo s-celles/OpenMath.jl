@@ -178,7 +178,7 @@ resynchronise on part-way through.
 julia> using OpenMath
 
 julia> read_binary(hex2bytes("580200011019")).object
-OMI(16)
+16
 ```
 """
 function read_binary(data::AbstractVector{UInt8}; mode::Symbol = :strict)
