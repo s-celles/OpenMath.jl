@@ -478,6 +478,12 @@ manual review.
 
 ### Changed
 
+- **The REPL shows objects in Popcorn**: `1 + $x` rather than
+  `OMA(OMS(arith1#plus), OMI(1), OMV(x))`. Only where Popcorn shows the whole
+  object — a `cdbase` anywhere, or an `OMFOREIGN` with an encoding, falls back
+  to the functional form. `repr`, string interpolation, containers and
+  `OMObject` keep the functional form.
+
 - **`XML.jl` 0.4.9 or later is required.** A document with a DOCTYPE is now
   refused by `XML.jl`'s `doctype = :refuse`, before any of its declarations is
   read: refusing an internal subset whose entities expand to 4 MiB allocated

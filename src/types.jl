@@ -155,7 +155,7 @@ An `OMSymbol` is callable and builds an application:
 julia> using OpenMath
 
 julia> OMSymbol("arith1", "plus")(OMInteger(1), OMVariable("x"))
-OMA(OMS(arith1#plus), OMI(1), OMV(x))
+1 + \$x
 ```
 """
 struct OMSymbol <: OMLeaf
@@ -236,7 +236,7 @@ as `Int64`, so `OMInteger(5)` and `OMInteger(big(5))` are the same object.
 julia> using OpenMath
 
 julia> OMInteger(5)
-OMI(5)
+5
 
 julia> OMInteger(big(2)^70).value
 1180591620717411303424
@@ -265,7 +265,7 @@ distinguishes their bit patterns.
 julia> using OpenMath
 
 julia> OMFloat(1.5)
-OMF(1.5)
+1.5
 ```
 """
 struct OMFloat <: OMLeaf
@@ -287,7 +287,7 @@ A Unicode character string (standard §2.1.1).
 julia> using OpenMath
 
 julia> OMString("a < b")
-OMSTR("a < b")
+"a < b"
 ```
 """
 struct OMString <: OMLeaf
@@ -309,7 +309,7 @@ A sequence of bytes (standard §2.1.1), base64-encoded in the XML encoding.
 julia> using OpenMath
 
 julia> OMBytes(UInt8[0x01, 0x02])
-OMB(2 bytes)
+%AQI=%
 ```
 """
 struct OMBytes <: OMLeaf
@@ -331,7 +331,7 @@ A variable (standard §2.1.1). `name` must match the `Name` production of §2.3.
 julia> using OpenMath
 
 julia> OMVariable("x")
-OMV(x)
+\$x
 ```
 """
 struct OMVariable <: OMLeaf
@@ -365,7 +365,7 @@ See [`isinternal`](@ref).
 julia> using OpenMath
 
 julia> OMReference("#a")
-OMR(#a)
+#a
 ```
 """
 struct OMReference <: OMLeaf
@@ -424,7 +424,7 @@ requires at least the applicant, which this type enforces by construction.
 julia> using OpenMath
 
 julia> OMApplication(OMS"arith1#plus", [OMInteger(1), OMInteger(2)])
-OMA(OMS(arith1#plus), OMI(1), OMI(2))
+1 + 2
 ```
 """
 struct OMApplication <: OMComposite
@@ -455,7 +455,7 @@ A binding object (standard §2.1.1): `binder` binds `variables` in `body`.
 julia> using OpenMath
 
 julia> OMBinding(OMS"fns1#lambda", [OMBoundVariable("x")], OMVariable("x"))
-OMBIND(OMS(fns1#lambda), [x], OMV(x))
+lambda[\$x -> \$x]
 ```
 """
 struct OMBinding <: OMComposite
@@ -486,7 +486,7 @@ foreign content.
 julia> using OpenMath
 
 julia> OMError(OMS"error#unexpected_symbol", [OMS"arith1#plurse"])
-OME(OMS(error#unexpected_symbol), OMS(arith1#plurse))
+error.unexpected_symbol!(arith1.plurse)
 ```
 """
 struct OMError <: OMComposite
@@ -519,7 +519,7 @@ julia> a = OMAttribution([OMAttributePair(OMS"ecc#type", OMS"ecc#integer")],
                          OMVariable("n"));
 
 julia> a.object
-OMV(n)
+\$n
 ```
 """
 struct OMAttribution <: OMComposite
@@ -618,7 +618,7 @@ Build an [`OMSymbol`](@ref) from a literal, validated at macro-expansion time.
 julia> using OpenMath
 
 julia> OMS"arith1#plus"
-OMS(arith1#plus)
+arith1.plus
 ```
 """
 macro OMS_str(s)

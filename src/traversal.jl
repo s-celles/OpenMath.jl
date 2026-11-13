@@ -194,7 +194,7 @@ julia> using OpenMath
 julia> a = OMApplication(OMS"arith1#plus", [OMInteger(1), OMVariable("x")]);
 
 julia> map_openmath(n -> n isa OMInteger ? OMInteger(n.value + 1) : n, a)
-OMA(OMS(arith1#plus), OMI(2), OMV(x))
+2 + \$x
 ```
 """
 function map_openmath(f, x::OMOrForeign)

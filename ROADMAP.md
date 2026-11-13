@@ -694,7 +694,10 @@ is cheap; the parser is the optional half.
       and `OMFOREIGN` encodings (property P12), and `just fuzz` mutates Popcorn
       derived from the corpus — which found, in its first minute, a float
       exponent that escaped as an `ArgumentError`.
-- [ ] Switch `show(io, ::MIME"text/plain", ::OMNode)` over once the printer exists.
+- [x] Switch `show(io, ::MIME"text/plain", ::OMNode)` over once the printer exists.
+      **Done 2026-11-13** (REQ-POP-003). Only where Popcorn shows the whole
+      object: a `cdbase` or an `OMFOREIGN` encoding falls back to the
+      functional form, which the two-argument `show` keeps giving everywhere.
 
 ---
 

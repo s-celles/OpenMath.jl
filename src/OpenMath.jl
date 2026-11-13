@@ -16,7 +16,7 @@ implemented; see `ROADMAP.md` for what remains.
 julia> using OpenMath
 
 julia> e = OMS"arith1#plus"(OMInteger(1), OMVariable("x"))
-OMA(OMS(arith1#plus), OMI(1), OMV(x))
+1 + \$x
 
 julia> isvalid_openmath(e)
 true

@@ -17,6 +17,21 @@ julia> OpenMath.xml(obj)
 "<OMOBJ xmlns=\"http://www.openmath.org/OpenMath\" version=\"2.0\"><OMA><OMS cd=\"arith1\" name=\"plus\"/><OMI>1</OMI><OMV name=\"x\"/></OMA></OMOBJ>"
 ```
 
+It is also how the REPL shows an object:
+
+```jldoctest popcorn
+julia> obj
+1 + $x
+
+julia> repr(obj)
+"OMA(OMS(arith1#plus), OMI(1), OMV(x))"
+```
+
+The REPL falls back to that functional form whenever Popcorn would hide
+something: a `cdbase` anywhere in the object, or an `OMFOREIGN` with an
+encoding. `repr`, string interpolation and containers always use it, and so
+does an `OMObject`.
+
 Popcorn is **for reading**. It is not part of the OpenMath standard and not an
 interchange format: it has no syntax for `cdbase`, and an `OMFOREIGN` loses its
 encoding. Exchange objects in one of the [four encodings](encodings.md).

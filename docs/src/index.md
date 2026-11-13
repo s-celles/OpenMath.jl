@@ -22,7 +22,7 @@ symbols such as `arith1#plus` or `calculus1#diff`.
 julia> using OpenMath
 
 julia> e = OMS"arith1#plus"(OMInteger(1), OMVariable("x"))
-OMA(OMS(arith1#plus), OMI(1), OMV(x))
+1 + $x
 
 julia> isvalid_openmath(e)
 true
@@ -42,7 +42,7 @@ julia> o = OpenMath.parse("""
            </OMOBJ>""");
 
 julia> o.object
-OMA(OMS(arith1#plus), OMI(1), OMV(x))
+1 + $x
 ```
 
 `OpenMath.parse` determines the encoding from the leading bytes by default — see
@@ -74,13 +74,13 @@ julia> o = OpenMath.parse("""<OMOBJ xmlns="http://www.openmath.org/OpenMath" ver
                           mode = :recover);
 
 julia> o.object.applicant
-OMS(arith1#plus)
+arith1.plus
 
 julia> o.object.arguments[1].head
-OMS(moreerrors#encodingError)
+moreerrors.encodingError
 
 julia> o.object.arguments[2]
-OMI(2)
+2
 ```
 
 The symbol is `moreerrors#encodingError`, whose Content Dictionary defines it as
@@ -117,7 +117,7 @@ IEEE-754 `hex` form exactly when the decimal one would lose the value.
 julia> using OpenMath
 
 julia> to_openmath(3 // 4)
-OMA(OMS(nums1#rational), OMI(3), OMI(4))
+3//4
 
 julia> to_julia(to_openmath([1, 2, 3]))
 3-element Vector{Int64}:

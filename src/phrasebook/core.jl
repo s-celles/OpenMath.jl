@@ -335,7 +335,7 @@ The OpenMath object `p` gives to the Julia value `v`, falling back to
 julia> using OpenMath
 
 julia> express(Phrasebook(), 3)
-OMI(3)
+3
 ```
 """
 function express(p::Phrasebook, v)

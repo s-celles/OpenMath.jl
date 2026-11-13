@@ -34,7 +34,7 @@ julia> using Pkg; Pkg.add(url = "https://github.com/s-celles/OpenMath.jl")
 julia> using OpenMath
 
 julia> e = OMS"arith1#plus"(OMInteger(1), OMVariable("x"))
-OMA(OMS(arith1#plus), OMI(1), OMV(x))
+1 + $x
 
 julia> isvalid_openmath(e)
 true
@@ -43,7 +43,7 @@ julia> canonicalize(e).applicant.cdbase
 "http://www.openmath.org/cd"
 
 julia> to_openmath(3 // 4)
-OMA(OMS(nums1#rational), OMI(3), OMI(4))
+3//4
 
 julia> to_julia(to_openmath([1, 2, 3]))
 3-element Vector{Int64}:
@@ -63,6 +63,11 @@ julia> OpenMath.to_openmath(c::Celsius) =
 julia> to_openmath(Celsius(21.5))
 OMA(OMS(http://example.org/cd#units#celsius), OMF(21.5))
 ```
+
+The REPL shows objects in [Popcorn](https://s-celles.github.io/OpenMath.jl/dev/popcorn/),
+a compact notation — `1 + $x` above — unless it would hide something: Popcorn
+has no syntax for `cdbase`, so the last object is shown in the functional form,
+which `repr` always gives.
 
 ## Design notes
 
