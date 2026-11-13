@@ -23,6 +23,14 @@ manual review.
 
 ### Added
 
+- **Popcorn printer**: `write_popcorn(io, obj)` and `OpenMath.popcorn(obj)` write
+  an object in Popcorn, the compact linear notation of Horn and Roozemond
+  (2009): `($x + 1)*2` for `OMA(times, OMA(plus, $x, 1), 2)`. It follows the
+  reference grammar's precedence and prints only what reads back as the same
+  object. Documented in `docs/src/popcorn.md`, with the departures from the
+  reference renderer in `docs/src/design/popcorn.md`. Printing only; Popcorn is
+  for reading, not interchange.
+
 - [`docs/src/compat.md`](https://s-celles.github.io/OpenMath.jl/dev/compat/) —
   the versioning contract. The public API is exactly `names(OpenMath)`; anything
   else is internal, including documented internals. It states what a `0.x` minor
