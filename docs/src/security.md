@@ -98,7 +98,7 @@ each against the code and a test, rather than against the intention.
 | No unbounded allocation | every length field is checked against `max_bytes` before it is acted on | `invalid/binary-huge-length`, `test/unit/binary_reader.jl` |
 | No hang, nothing outside `OpenMathError` | — | P4b, P8, `just fuzz` at ~2 000 000 inputs |
 | Parsed content never reaches `eval` | — | a quality gate over `src/` **and `ext/`** |
-| No DTD or external entity | `XML.jl` reads at `wellformed = :strict`, which refuses an undeclared entity; the event layer over it refuses any `<!DOCTYPE` | `invalid/doctype`, `invalid/entity-declaration`, `invalid/undeclared-entity` |
+| No DTD or external entity | `XML.jl` reads at `wellformed = :strict`, which refuses an undeclared entity, and with `doctype = :refuse`, which refuses any `<!DOCTYPE` before its declarations are read | `invalid/doctype`, `invalid/entity-declaration`, `invalid/undeclared-entity` |
 | Names never interned | by a **parser**; `to_julia` is the documented exception | the test above |
 
 Two of those rows were wrong when the review started.

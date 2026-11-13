@@ -16,9 +16,11 @@
 # What this layer adds to `XML.jl`, because this package promises more than
 # well-formedness:
 #
-# - a document type declaration is refused outright (REQ-XML-009, SECURITY.md).
-#   `XML.jl` accepts one and applies its internal subset, which is correct XML
-#   and a weaker guarantee than this package makes;
+# - a document type declaration is refused outright (REQ-XML-009, SECURITY.md),
+#   by `doctype = :refuse`: before any of its declarations is read, so an
+#   internal subset costs nothing to refuse. Without it `XML.jl` would read the
+#   subset and apply it, which is correct XML and a weaker guarantee than this
+#   package makes;
 # - nothing but an `OpenMathError` escapes (REQ-SEC-001). `XML.jl` raises
 #   `ErrorException`; its message is kept and its type is not. It carries no
 #   position, so such an error reports offset 1 — see upstream-bugs.md.
@@ -79,10 +81,18 @@ function XMLPullParser(data::AbstractString)
     text = String(data)
     _check_utf8(text)
     doc = try
-        Base.parse(XML.FlatNode, text; wellformed = :strict)
+        Base.parse(XML.FlatNode, text; wellformed = :strict, doctype = :refuse)
     catch err
         (err isa ErrorException || err isa ArgumentError) || rethrow()
         message = _xmljl_message(err)
+        # A DOCTYPE is well-formed XML; refusing it is this package's rule, and
+        # the message says so rather than calling the document ill-formed.
+        if occursin("doctype = :refuse", message)
+            at = findfirst("<!DOCTYPE", text)
+            throw(OpenMathParseError(
+                "DOCTYPE declarations are not accepted (standard §3.1; see SECURITY.md)";
+                offset = at === nothing ? 1 : first(at)))
+        end
         throw(OpenMathParseError("the document is not well-formed XML: " * message;
             offset = _xmljl_offset(message)))
     end
@@ -107,9 +117,10 @@ end
 
 _offset(n::_FlatNode) = first(XML.sourcespan(n))
 
-# An element's source ends with the `>` of its end tag. `XML.jl` v0.4.8 accepts
-# an end tag cut off at the very end of the document — `<a>1</a` — at `:strict`
-# (upstream-bugs.md), and its span then ends on the name instead.
+# An element's source ends with the `>` of its end tag. `XML.jl` v0.4.9 accepts
+# an end tag cut off at the very end of the document — `<a>1</a` — at every
+# `wellformed` level (JuliaData/XML.jl#250, upstream-bugs.md), and its span then
+# ends on the name instead.
 function _check_closed(p::XMLPullParser, name::AbstractString, stop::Int)
     (1 <= stop <= ncodeunits(p.data) && codeunit(p.data, stop) == UInt8('>')) ||
         throw(OpenMathParseError("unterminated end tag </$(name)>"; offset = stop))
@@ -138,18 +149,6 @@ function next_event!(p::XMLPullParser)
             return _start!(p, node)
         elseif kind === XML.Text || kind === XML.CData
             return _characters!(p, node)
-        elseif kind === XML.ProcessingInstruction
-            # XML 1.0 §2.6 reserves the target `xml` in any case. `XML.jl`
-            # v0.4.8 accepts `<?XML …?>` at `:strict` (upstream-bugs.md).
-            target = XML.tag(node)
-            (target !== nothing && lowercase(target) == "xml") && throw(
-                OpenMathParseError(
-                "the processing-instruction target $(repr(String(target))) is " *
-                "reserved (XML 1.0 §2.6)"; offset = _offset(node)))
-        elseif kind === XML.DTD
-            throw(OpenMathParseError(
-                "DOCTYPE declarations are not accepted (standard §3.1; see SECURITY.md)";
-                offset = _offset(node)))
         end
         # Comments, processing instructions and the XML declaration carry no
         # OpenMath content.

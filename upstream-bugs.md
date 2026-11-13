@@ -868,17 +868,18 @@ above. This probably belongs to #137 rather than to a report of its own.
 
 ---
 
-## XML.jl 0.4.8 — a reserved processing-instruction target is accepted at `:strict` unless written in lower case
+## XML.jl 0.4.8 — a reserved processing-instruction target is accepted at `:strict` unless written in lower case (fixed in 0.4.9)
 
 - **Found**: 2026-11-12, moving XML parsing onto `XML.jl` (decision D1)
 - **Affected**: `XML.jl` v0.4.8; Julia 1.13.3
 - **Reported**: already, as <https://github.com/JuliaData/XML.jl/issues/218>, by
-  the maintainer. **Fixed on `main`** (closed 2026-11-09), after v0.4.8; not
-  released yet. Verified 2026-11-12 on `main` at `bc827ff`: `<?XML y?>` and
-  `<?XmL y?>` are refused at `:strict`.
-- **Workaround**: the event layer refuses a processing instruction whose target
-  is `xml` in any case (`src/xml/tokenizer.jl`, `next_event!`); asserted in
-  `test/unit/xml_wellformed.jl`
+  the maintainer, closed 2026-11-09.
+- **Status**: **fixed in `XML.jl` v0.4.9** (released 2026-11-12). Re-verified
+  2026-11-13 on v0.4.9, Julia 1.13.3: `<?XML y?>` and `<?XmL y?>` are refused at
+  `:strict`.
+- **Workaround**: none any more. Until v0.4.9 the event layer refused such a
+  target itself; it was removed when `[compat]` moved to `XML = "0.4.9"`. The
+  case stays asserted in `test/unit/xml_wellformed.jl`
 
 ### Reproducer
 
@@ -903,10 +904,14 @@ are reserved for standardisation, not excluded.
 ## XML.jl 0.4.8 — an end tag cut off at the very end of the document is accepted at `:strict`
 
 - **Found**: 2026-11-12, moving XML parsing onto `XML.jl` (decision D1)
-- **Affected**: `XML.jl` v0.4.8 (latest release) **and** `main` at `bc827ff`;
-  Julia 1.13.3. `Node` and `FlatNode` alike. Control: expat 2.7.1 (Python 3.12)
-  refuses both reproducers with "unclosed token"
-- **Reported**: <https://github.com/JuliaData/XML.jl/issues/250>, 2026-11-12
+- **Affected**: `XML.jl` v0.4.8, `main` at `bc827ff` **and v0.4.9**; Julia
+  1.13.3. `Node` and `FlatNode` alike, and at every `wellformed` level, not only
+  `:strict`. Control: expat 2.7.1 (Python 3.12) refuses both reproducers with
+  "unclosed token"
+- **Reported**: <https://github.com/JuliaData/XML.jl/issues/250>, 2026-11-12.
+  Confirmed by the maintainer the same day: the tokenizer ends its stream after
+  the name of the last end tag without asking for `>`. Not in v0.4.9; planned for
+  the release after it.
 - **Workaround**: when an element closes, the event layer checks that its
   `sourcespan` ends on `>` (`src/xml/tokenizer.jl`, `_check_closed`); asserted
   by `test/unit/xml_tokenizer.jl`, "malformed input reports a byte offset"
