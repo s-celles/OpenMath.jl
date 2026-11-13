@@ -451,7 +451,7 @@ each against the code and a test, rather than against the intention.
 | No unbounded allocation | every length field is checked against `max_bytes` before it is acted on | `invalid/binary-huge-length`, `test/unit/binary_reader.jl` |
 | No hang, nothing outside `OpenMathError` | — | P4b, P8, `just fuzz` at ~2 000 000 inputs |
 | Parsed content never reaches `eval` | — | a quality gate over `src/` **and `ext/`** |
-| No DTD or external entity | `XML.jl` reads at `wellformed = :strict`, which refuses an undeclared entity; the event layer over it refuses any `<!DOCTYPE` | `invalid/doctype`, `invalid/entity-declaration`, `invalid/undeclared-entity` |
+| No DTD or external entity | `XML.jl` reads at `wellformed = :strict`, which refuses an undeclared entity, and with `doctype = :refuse`, which refuses any `<!DOCTYPE` before its declarations are read | `invalid/doctype`, `invalid/entity-declaration`, `invalid/undeclared-entity` |
 | Names never interned | by a **parser**; `to_julia` is the documented exception | the test above |
 
 Two of those rows were wrong when the review started.
@@ -515,14 +515,17 @@ any tree exists.
 **What the event layer adds**, because this package promises more than
 well-formedness:
 
-- a document type declaration is refused outright (REQ-XML-009). `XML.jl`
-  accepts one and applies its internal subset, which is correct XML and a
-  weaker guarantee than `SECURITY.md` makes;
+- a document type declaration is refused outright (REQ-XML-009), through
+  `XML.jl`'s `doctype = :refuse` (v0.4.9 and later): before any declaration is
+  read, so a hostile internal subset costs nothing to refuse. Without it,
+  `XML.jl` reads the subset and applies it, which is correct XML and a weaker
+  guarantee than `SECURITY.md` makes;
 - only `OpenMathError` escapes (REQ-SEC-001): `XML.jl`'s `ErrorException` and
   `ArgumentError` are converted, message kept;
-- two `XML.jl` v0.4.8 defects are worked around — a reserved
-  processing-instruction target in upper or mixed case, and an end tag cut off
-  at the very end of the document, are both accepted at `:strict`. Both are in
+- one `XML.jl` defect is worked around: an end tag cut off at the very end of
+  the document is accepted ([JuliaData/XML.jl#250](https://github.com/JuliaData/XML.jl/issues/250)).
+  A second, a reserved processing-instruction target in upper or mixed case,
+  was worked around until `XML.jl` v0.4.9 fixed it. Both are in
   `upstream-bugs.md`.
 
 **What it loses.** `XML.jl`'s well-formedness errors carry no position, so they
