@@ -17,6 +17,7 @@ makedocs(;
         "Home" => "index.md",
         "Object model" => "object-model.md",
         "Encodings" => "encodings.md",
+        "Popcorn" => "popcorn.md",
         "Validation & passes" => "passes.md",
         "Security" => "security.md",
         "Round trips" => "round-trip.md",
@@ -25,7 +26,7 @@ makedocs(;
         "Compatibility" => "compat.md",
         "Design notes" => ["design/xml-backend.md", "design/json-backend.md",
             "design/binary-backend.md", "design/phrasebook.md",
-            "design/mathml-appendix-f.md"],
+            "design/mathml-appendix-f.md", "design/popcorn.md"],
         "API" => "api.md"
     ],
     checkdocs = :exports,

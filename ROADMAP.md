@@ -681,7 +681,13 @@ Its value is ergonomic, and it is large: it would replace
 what anyone in the REPL actually reads. A printer alone is most of the benefit and
 is cheap; the parser is the optional half.
 
-- [ ] `src/popcorn/printer.jl` — precedence and bracketing for the common CDs.
+- [x] `src/popcorn/printer.jl` — precedence and bracketing for the common CDs.
+      **Done 2026-11-13.** `write_popcorn` and `OpenMath.popcorn`. The
+      precedence is the reference *grammar's* (`PopcornAST.g`), not its
+      renderer's, which disagree; and only what the reference walker reads back
+      as the same object is printed. `docs/src/design/popcorn.md` lists the
+      departures — among them, the reference renderer prints bare names and ids
+      its own parser cannot read.
 - [ ] `src/popcorn/parser.jl` — the reverse, with the same explicit-stack and
       error-offset discipline as the other readers.
 - [ ] Switch `show(io, ::MIME"text/plain", ::OMNode)` over once the printer exists.

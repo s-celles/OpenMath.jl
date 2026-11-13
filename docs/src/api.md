@@ -116,6 +116,13 @@ OpenMath.binary
 write_binary
 ```
 
+## Popcorn
+
+```@docs
+OpenMath.popcorn
+write_popcorn
+```
+
 ## Phrasebooks
 
 ```@docs
