@@ -119,6 +119,7 @@ write_binary
 ## Popcorn
 
 ```@docs
+read_popcorn
 OpenMath.popcorn
 write_popcorn
 ```

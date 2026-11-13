@@ -1,6 +1,8 @@
 # Popcorn — following the grammar, not the renderer
 
-**Status**: the printer is implemented (REQ-POP-001); the parser is not yet.
+**Status**: the printer (REQ-POP-001) and the parser (REQ-POP-002) are
+implemented. Printing then reading gives back the object, but for `cdbase` and
+`OMFOREIGN` encodings — property P12, on generated objects.
 
 Popcorn has no standard. Its definition is the 2009 paper — Horn and Roozemond,
 *OpenMath in SCIEnce: SCSCP and POPCORN*, Calculemus/MKM 2009, LNAI 5625,
@@ -73,3 +75,29 @@ also be one the reference reads where it can:
 - `cdbase` has no syntax. A symbol is printed by its Content Dictionary and name,
   and the infix and bare forms are used only when it has no `cdbase` of its own.
 - `OMFOREIGN` is printed between backquotes; its encoding has no syntax.
+
+## The parser
+
+`read_popcorn` reads `PopcornAST.g` and builds what `PopcornWalker.g` builds,
+with these differences, each so that it reads back exactly what the printer
+writes:
+
+- **Brackets stop a chain.** `+`, `*` and `;` flatten an *unbracketed* chain
+  into one application; `(a + b) + c` stays nested. The reference flattens
+  through brackets, so it cannot read a nested sum back.
+- **Bare names are the printer's list**, not the reference table's 568 names.
+  Reading a name this package would never write gains nothing, and every bare
+  name read is then one the printer writes the same way.
+- **`OMFOREIGN` is read verbatim, with no encoding.** The reference guesses an
+  encoding from the text before the first `<`; the printer writes none.
+  Foreign content is accepted only where the object model allows it — an
+  error's argument, an attribute's value — and not as a whole object.
+- **A float out of `Float64`'s range is refused**, as the XML reader refuses
+  `<OMF dec="1e99999"/>`. Found by `just fuzz`, which now mutates Popcorn
+  derived from every corpus object: `Base.parse` raised an `ArgumentError`.
+- **`x::T` is not read.** The reference reads it only after a program sets
+  `PopcornHelper.typeSymbol`; there is no such setting to honour here.
+
+Like every reader in this package it uses explicit stacks, not recursion
+(REQ-SEC-002), checks `max_bytes` before reading and `max_depth` as it builds,
+and raises nothing but `OpenMathError`.

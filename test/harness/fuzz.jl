@@ -41,7 +41,10 @@ end
 # writing binary bytes into `object.xml` gives the conformance driver a fixture
 # that is not what its name says. The sniffed format is used instead.
 const FINDING_FILE = Dict(:xml => "object.xml", :json => "object.json",
-    :mathml => "object.mml", :binary => "object.bin")
+    :mathml => "object.mml", :binary => "object.bin",
+    # Popcorn is not one of the corpus encodings, so the conformance driver does
+    # not replay this file: it is kept to be turned into a unit test by hand.
+    :popcorn => "object.popcorn")
 
 function finding_file(src::AbstractString, format::Symbol)
     format === :auto || return FINDING_FILE[format]
@@ -114,6 +117,18 @@ end
 # `:recover` was not fuzzed at all until this was written, though it makes the
 # strongest of the three promises and shipped two commits before the campaign.
 function try_parse(src::AbstractString, format::Symbol, mode::Symbol)
+    if format === :popcorn
+        # One mode only: `read_popcorn` is strict, and promises nothing but
+        # `OpenMathError`.
+        mode === :strict || return nothing
+        try
+            read_popcorn(src)
+        catch err
+            err isa OpenMath.OpenMathError && return nothing
+            return sprint(showerror, err)
+        end
+        return nothing
+    end
     obj = try
         OpenMath.parse(src; format = format, mode = mode)
     catch err
@@ -158,6 +173,10 @@ function main(argv)
     # than stored, the same way the conformance driver derives them, so the
     # campaign covers every corpus item without a single `.bin` file on disk.
     seeds = Tuple{String, Bool}[]
+    # Popcorn seeds are derived the same way, from every object the corpus holds,
+    # so that mutations land on Popcorn's own grammar and not only on XML and JSON
+    # text that happens to reach its lexer.
+    popcorn_seeds = String[]
     for item in Corpus.items()
         for (_, src) in item.sources
             push!(seeds, (src, false))
@@ -171,6 +190,12 @@ function main(argv)
                 nothing
             end
             derived === nothing || push!(seeds, (derived, true))
+            pop = try
+                OpenMath.popcorn(Corpus.decode(e, src))
+            catch
+                nothing
+            end
+            pop === nothing || push!(popcorn_seeds, pop)
             break
         end
     end
@@ -192,8 +217,11 @@ function main(argv)
         while time() < deadline && isempty(findings)
             n += 1
             seed_src, isbinary = rand(rng, seeds)
+            if !isempty(popcorn_seeds) && rand(rng) < 0.2
+                seed_src, isbinary = rand(rng, popcorn_seeds), false
+            end
             src = mutate(rng, seed_src, isbinary)
-            formats = isbinary ? (:auto, :binary) : (:auto, :xml, :json, :mathml)
+            formats = isbinary ? (:auto, :binary) : (:auto, :xml, :json, :mathml, :popcorn)
             for format in formats, mode in MODES
 
                 msg = try_parse(src, format, mode)

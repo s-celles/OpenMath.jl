@@ -22,7 +22,18 @@ interchange format: it has no syntax for `cdbase`, and an `OMFOREIGN` loses its
 encoding. Exchange objects in one of the [four encodings](encodings.md).
 
 [`write_popcorn`](@ref) writes to a stream, [`OpenMath.popcorn`](@ref) returns a
-`String`. This package prints Popcorn; it does not read it yet.
+`String`, and [`read_popcorn`](@ref) reads it back:
+
+```jldoctest popcorn
+julia> read_popcorn("lambda[\$x -> \$x^2 + 1]")
+OMOBJ(OMBIND(OMS(fns1#lambda), [x], OMA(OMS(arith1#plus), OMA(OMS(arith1#power), OMV(x), OMI(2)), OMI(1))))
+
+julia> read_popcorn(OpenMath.popcorn(obj)).object == obj
+true
+```
+
+What [`write_popcorn`](@ref) writes reads back as the same object, but for what
+Popcorn has no syntax for. That is a tested property, on generated objects.
 
 ## The notation
 
@@ -91,5 +102,22 @@ julia> OpenMath.popcorn(OMBinding(OMS"quant1#forall", [OMBoundVariable("x")], OM
 "forall[\$x -> exp(\$x) >= 0]"
 ```
 
+## Reading
+
+[`read_popcorn`](@ref) reads the reference grammar, and a little more than this
+package writes: hexadecimal integers (`0x1F`), `/* comments */`, `<>` for
+`!=`, and the `if … then … else … endif` and `while … do … endwhile` forms of
+`prog1`. A chain `a + b + c` is one `arith1#plus` of three operands, while
+`(a + b) + c` keeps its brackets. Errors are `OpenMathParseError`s with the byte
+offset of the token at fault:
+
+```jldoctest popcorn
+julia> read_popcorn("\$x < \$y < \$z")
+ERROR: OpenMathParseError: "<" does not chain; put one side in brackets at byte 9
+```
+
+It does not read `x::T`, which the reference library accepts only once a type
+symbol has been configured, nor any bare name outside the list above.
+
 How this follows the reference grammar, and where it departs from the
-reference renderer, is in the [design note](design/popcorn.md).
+reference library, is in the [design note](design/popcorn.md).

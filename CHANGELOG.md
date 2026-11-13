@@ -23,6 +23,13 @@ manual review.
 
 ### Added
 
+- **Popcorn parser**: `read_popcorn(src)` reads Popcorn back into an `OMObject`.
+  What `write_popcorn` writes reads back as the same object, but for `cdbase`
+  and `OMFOREIGN` encodings, which Popcorn has no syntax for (property P12).
+  Errors carry the byte offset of the token at fault; no recursion, and the
+  configured limits apply. `just fuzz` now mutates Popcorn derived from every
+  corpus object.
+
 - **Popcorn printer**: `write_popcorn(io, obj)` and `OpenMath.popcorn(obj)` write
   an object in Popcorn, the compact linear notation of Horn and Roozemond
   (2009): `($x + 1)*2` for `OMA(times, OMA(plus, $x, 1), 2)`. It follows the

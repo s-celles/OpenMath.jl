@@ -159,3 +159,139 @@ end
     @test startswith(s, "sin(sin(")
     @test endswith(s, "\$x" * ")"^100_000)
 end
+
+# ---------------------------------------------------------------- parser ---
+# REQ-POP-002 — reading Popcorn back.
+
+@testitem "popcorn parser: the examples of the 2009 paper" tags = [:unit, :popcorn] begin
+    using OpenMath
+    r(s) = read_popcorn(s).object
+    @test r("sin(3)") == OMS"transc1#sin"(OMInteger(3))
+    @test r("lambda[\$x->1+\$x]") == OMBinding(OMS"fns1#lambda", [OMBoundVariable("x")],
+        OMS"arith1#plus"(OMInteger(1), OMVariable("x")))
+    @test isequal_with_ids(r("\$a := [1//2, (2|8):x]"),
+        OMS"prog1#assign"(OMVariable("a"),
+            OMS"list1#list"(OMS"nums1#rational"(OMInteger(1), OMInteger(2)),
+                OMApplication(OMS"complex1#complex_cartesian",
+                    [OMInteger(2), OMInteger(8)]; id = "x"))))
+    @test r("1.2{aa.bb -> \"cc\"}") ==
+          OMAttribution([OMAttributePair(OMS"aa#bb", OMString("cc"))], OMFloat(1.2))
+    @test r("arith1.plus(1,2,3)") ==
+          OMS"arith1#plus"(OMInteger(1), OMInteger(2), OMInteger(3))
+    @test r("quant1.forall[\$x, \$y -> \$x = \$y]") == OMBinding(OMS"quant1#forall",
+        [OMBoundVariable("x"), OMBoundVariable("y")],
+        OMS"relation1#eq"(OMVariable("x"), OMVariable("y")))
+    @test read_popcorn("1") isa OMObject
+end
+
+@testitem "popcorn parser: tokens" tags = [:unit, :popcorn] begin
+    using OpenMath
+    r(s) = read_popcorn(s).object
+    @test r("0x1F") == OMInteger(31)
+    @test r("12345678901234567890123") == OMInteger(big"12345678901234567890123")
+    @test r("-9223372036854775808") == OMInteger(typemin(Int64))
+    @test r("2.5e-3") == OMFloat(2.5e-3)
+    @test r("0f7FF0000000000000") == OMFloat(Inf)
+    @test r("-0.0").value === -0.0
+    @test r("\"a\\\"b\\\\c\"") == OMString("a\"b\\c")
+    @test r("\$'x-1'") == OMVariable("x-1")
+    @test r("'my-cd'.f") == OMSymbol("my-cd", "f")
+    @test r("arith1 . plus") == OMS"arith1#plus"            # white space is skipped
+    @test r("#a") == OMReference("#a")
+    @test r("##http://example.org/x#y##") == OMReference("http://example.org/x#y")
+    @test r("%AQID%") == OMBytes(UInt8[1, 2, 3])
+    @test r("cd.f!(`<b>x</b>`)") ==
+          OMError(OMSymbol("cd", "f"), [OMForeign(nothing, "<b>x</b>")])
+    # Not on its own: an OMOBJ cannot hold foreign content.
+    @test_throws OpenMath.OpenMathParseError read_popcorn("`<b>x</b>`")
+    @test_throws OpenMath.OpenMathParseError read_popcorn("cd.f(`<b>x</b>`)")
+    @test r("pi") == OMS"nums1#pi"
+    @test r("/* a comment */ 1 + /* another */ 2") ==
+          OMS"arith1#plus"(OMInteger(1), OMInteger(2))
+end
+
+@testitem "popcorn parser: precedence and grouping" tags = [:unit, :popcorn] begin
+    using OpenMath
+    r(s) = read_popcorn(s).object
+    x, y, z = OMVariable("x"), OMVariable("y"), OMVariable("z")
+    @test r("\$x + \$y * \$z") == OMS"arith1#plus"(x, OMS"arith1#times"(y, z))
+    @test r("\$x + \$y + \$z") == OMS"arith1#plus"(x, y, z)          # a chain flattens
+    @test r("(\$x + \$y) + \$z") == OMS"arith1#plus"(OMS"arith1#plus"(x, y), z)
+    @test r("\$x - \$y - \$z") == OMS"arith1#minus"(OMS"arith1#minus"(x, y), z)
+    @test r("\$x - \$y + \$z") == OMS"arith1#plus"(OMS"arith1#minus"(x, y), z)
+    @test r("\$x and \$y and \$z") == OMS"logic1#and"(OMS"logic1#and"(x, y), z)
+    @test r("-\$x*\$y") == OMS"arith1#unary_minus"(OMS"arith1#times"(x, y))
+    @test r("-\$x + \$y") == OMS"arith1#plus"(OMS"arith1#unary_minus"(x), y)
+    @test r("-3") == OMInteger(-3)                                # a literal folds
+    @test r("arith1.unary_minus(3)") == OMS"arith1#unary_minus"(OMInteger(3))
+    @test r("\$x <> \$y") == OMS"relation1#neq"(x, y)
+    @test r("\$x := 1; \$x") ==
+          OMS"prog1#block"(OMS"prog1#assign"(x, OMInteger(1)), x)
+    @test r("if \$x then 1 else 2 endif") ==
+          OMS"prog1#if"(x, OMInteger(1), OMInteger(2))
+    @test r("while \$x do \$y endwhile") == OMS"prog1#while"(x, y)
+    @test r("[]") == OMS"list1#list"()
+    @test r("{1, 2}") == OMS"set1#set"(OMInteger(1), OMInteger(2))
+    @test r("cd.f!(\"bad\")") == OMError(OMSymbol("cd", "f"), [OMString("bad")])
+    @test isequal_with_ids(r("cd.f:s(\$x)"),
+        OMApplication(OMSymbol("cd", "f"; id = "s"), [x]))
+    @test r("forall[\$y{ecc.type -> setname1.Z} -> \$y]") == OMBinding(OMS"quant1#forall",
+        [OMBoundVariable("y", [OMAttributePair(OMS"ecc#type", OMS"setname1#Z")])], y)
+end
+
+@testitem "popcorn parser: what the grammar rejects" tags = [:unit, :popcorn] begin
+    using OpenMath
+    function err(s)
+        try
+            read_popcorn(s)
+            nothing
+        catch e
+            e
+        end
+    end
+    for (src, at) in [
+        ("\$x < \$y < \$z", 9),    # non-associative: needs brackets
+        ("\$x * -\$y", 6),         # a prefix minus is not a factor
+        ("cd.f(\$x)(\$y)", 9),     # a call is not an anchor
+        ("1 +", 4),                # end of input where an operand is due
+        ("unknownname", 1),        # a bare name the table does not know
+        ("(1, 2)", 3),             # brackets hold one expression
+        ("\$x::cd.T", 3),          # needs a configured type symbol
+        ("\"open", 1),             # unterminated string
+        ("1 2", 3)                 # two operands in a row
+    ]
+        e = err(src)
+        @test "$src: $(e isa OpenMath.OpenMathParseError)" == "$src: true"
+        e isa OpenMath.OpenMathParseError && @test "$src: $(e.offset)" == "$src: $at"
+    end
+end
+
+@testitem "popcorn parser: a deep input does not overflow the stack" tags = [
+    :unit, :popcorn, :security] begin
+    using OpenMath
+    src = "sin("^5000 * "\$x" * ")"^5000
+    @test OpenMath.depth(read_popcorn(src).object) == 5001
+    # Past the configured depth it is a limit error, not a crash.
+    @test_throws OpenMath.OpenMathLimitError with_limits(OMLimits(; max_depth = 100)) do
+        read_popcorn(src)
+    end
+end
+
+@testitem "popcorn parser: never raises anything but OpenMathError" tags = [
+    :unit, :popcorn, :security] begin
+    using OpenMath
+    for src in ["", " ", "(", ")", "[", "]", "{", "}", "\$", "#", "##", "%", "`", "'",
+        "0x", "0f", "1.", ".5", "..", "->", ":", "::", "!", "a.", ".b", "\$1", "if",
+        "if 1 then", "while", "1 ->", "f[", "f{", "f!(", "\xff", "\$'unterminated",
+        # Found by `just fuzz`: an exponent past Float64's range raised an
+        # `ArgumentError` from `Base.parse`.
+        "5.0e-3245", "1.0e99999"]
+        r = try
+            read_popcorn(src)
+            :ok
+        catch e
+            e isa OpenMath.OpenMathError ? :openmath_error : typeof(e)
+        end
+        @test "$(repr(src)): $r" in ("$(repr(src)): ok", "$(repr(src)): openmath_error")
+    end
+end
