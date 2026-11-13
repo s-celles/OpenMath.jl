@@ -55,6 +55,7 @@ include("binary/tokens.jl")
 include("binary/writer.jl")
 include("binary/reader.jl")
 include("popcorn/printer.jl")
+include("popcorn/parser.jl")
 include("phrasebook/core.jl")
 include("phrasebook/base.jl")
 include("cd/parser.jl")
@@ -101,7 +102,7 @@ export with_phrasebook, current_phrasebook
 export read_xml, write_xml, read_json, write_json
 export read_mathml, write_mathml, MATHML_NS
 export read_binary, write_binary
-export write_popcorn
+export read_popcorn, write_popcorn
 
 # Content Dictionaries
 export ContentDictionary, CDDefinition, STSSignatures, CDRegistry

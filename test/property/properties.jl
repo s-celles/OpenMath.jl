@@ -451,6 +451,33 @@ end
     Regression.flush!()
 end
 
+@testitem "P12: Popcorn round-trips, but for what it cannot write" tags = [
+    :property, :popcorn] begin
+    using Supposition, OpenMath
+    include(joinpath(@__DIR__, "..", "harness", "generators.jl"))
+    include(joinpath(@__DIR__, "..", "harness", "regression.jl"))
+
+    # Popcorn has no syntax for `cdbase` or for an `OMFOREIGN` encoding; those
+    # are dropped from the object before comparing, and nothing else is.
+    forget(n::OMSymbol) = OMSymbol(n.cd, n.name; id = n.id)
+    forget(n::OMForeign) = OMForeign(nothing, n.value; id = n.id)
+    forget(n::OMApplication) = OMApplication(n.applicant, n.arguments; id = n.id)
+    forget(n::OMBinding) = OMBinding(n.binder, n.variables, n.body; id = n.id)
+    forget(n::OMError) = OMError(n.head, n.arguments; id = n.id)
+    forget(n::OMAttribution) = OMAttribution(n.attributes, n.object; id = n.id)
+    forget(n) = n
+
+    @check max_examples = 400 function p12_popcorn_roundtrip(obj = Generators.gen_object())
+        Regression.checked("p12_popcorn_roundtrip", obj) do obj
+            expected = map_openmath(forget, obj.object)
+            back = read_popcorn(OpenMath.popcorn(obj)).object
+            isequal_with_ids(back, expected)
+        end
+    end
+
+    Regression.flush!()
+end
+
 @testitem "the generators are not vacuous" tags = [:property] begin
     using Supposition, OpenMath
     include(joinpath(@__DIR__, "..", "harness", "generators.jl"))

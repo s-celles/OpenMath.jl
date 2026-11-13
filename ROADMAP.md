@@ -688,8 +688,12 @@ is cheap; the parser is the optional half.
       as the same object is printed. `docs/src/design/popcorn.md` lists the
       departures — among them, the reference renderer prints bare names and ids
       its own parser cannot read.
-- [ ] `src/popcorn/parser.jl` — the reverse, with the same explicit-stack and
-      error-offset discipline as the other readers.
+- [x] `src/popcorn/parser.jl` — the reverse, with the same explicit-stack and
+      error-offset discipline as the other readers. **Done 2026-11-13.**
+      `read_popcorn`. Printing then reading is the identity but for `cdbase`
+      and `OMFOREIGN` encodings (property P12), and `just fuzz` mutates Popcorn
+      derived from the corpus — which found, in its first minute, a float
+      exponent that escaped as an `ArgumentError`.
 - [ ] Switch `show(io, ::MIME"text/plain", ::OMNode)` over once the printer exists.
 
 ---
