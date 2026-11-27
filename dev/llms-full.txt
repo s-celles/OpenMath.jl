@@ -522,11 +522,12 @@ well-formedness:
   guarantee than `SECURITY.md` makes;
 - only `OpenMathError` escapes (REQ-SEC-001): `XML.jl`'s `ErrorException` and
   `ArgumentError` are converted, message kept;
-- one `XML.jl` defect is worked around: an end tag cut off at the very end of
-  the document is accepted ([JuliaData/XML.jl#250](https://github.com/JuliaData/XML.jl/issues/250)).
-  A second, a reserved processing-instruction target in upper or mixed case,
-  was worked around until `XML.jl` v0.4.9 fixed it. Both are in
-  `upstream-bugs.md`.
+- no `XML.jl` defect needs working around any more. Two did: a reserved
+  processing-instruction target in upper or mixed case, until `XML.jl` v0.4.9
+  ([JuliaData/XML.jl#218](https://github.com/JuliaData/XML.jl/issues/218)), and an
+  end tag cut off at the very end of the document, until `XML.jl` v0.4.10
+  ([JuliaData/XML.jl#250](https://github.com/JuliaData/XML.jl/issues/250)), which
+  is now refused with the position of the cut. Both are in `upstream-bugs.md`.
 
 **What it loses.** `XML.jl`'s well-formedness errors carry no position, so they
 report offset 1. Its tokenizer errors say "at position N", and that is used when
