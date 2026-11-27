@@ -901,7 +901,7 @@ are reserved for standardisation, not excluded.
 
 ---
 
-## XML.jl 0.4.8 — an end tag cut off at the very end of the document is accepted at `:strict`
+## XML.jl 0.4.8 — an end tag cut off at the very end of the document is accepted at `:strict` (fixed in 0.4.10)
 
 - **Found**: 2026-11-12, moving XML parsing onto `XML.jl` (decision D1)
 - **Affected**: `XML.jl` v0.4.8, `main` at `bc827ff` **and v0.4.9**; Julia
@@ -910,11 +910,17 @@ are reserved for standardisation, not excluded.
   "unclosed token"
 - **Reported**: <https://github.com/JuliaData/XML.jl/issues/250>, 2026-11-12.
   Confirmed by the maintainer the same day: the tokenizer ends its stream after
-  the name of the last end tag without asking for `>`. Not in v0.4.9; planned for
-  the release after it.
-- **Workaround**: when an element closes, the event layer checks that its
-  `sourcespan` ends on `>` (`src/xml/tokenizer.jl`, `_check_closed`); asserted
-  by `test/unit/xml_tokenizer.jl`, "malformed input reports a byte offset"
+  the name of the last end tag without asking for `>`.
+- **Status**: **fixed in `XML.jl` v0.4.10** (released 2026-11-18), by
+  <https://github.com/JuliaData/XML.jl/pull/261>, which also refuses an XML
+  declaration cut off before `?>` and makes `Cursor` and `LazyNode` raise on a
+  cut start tag. Re-verified 2026-11-27 on v0.4.10, Julia 1.13.3: `<a>1</a` and
+  `<a><b>1</b></a` are refused by `Node` and `FlatNode` at all three levels, with
+  `XML tokenizer error at position 8: unterminated close tag`.
+- **Workaround**: none any more. Until v0.4.10 the event layer checked that each
+  closed element's `sourcespan` ends on `>`; it was removed when `[compat]` moved
+  to `XML = "0.4.10"`. The error now carries the exact offset of the cut,
+  asserted in `test/unit/xml_wellformed.jl`
 
 ### Reproducer
 
