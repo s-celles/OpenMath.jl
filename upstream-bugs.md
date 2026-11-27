@@ -987,3 +987,77 @@ working tree's suite.
 
 `benchpkg` also writes into `--output-dir` without creating it; the workflow
 runs `mkdir -p results` first.
+
+---
+
+## MathML.jl 0.1.25 — `<root>` with a `<degree>` computes a power, not a root
+
+- **Found**: 2026-11-13 by probing; measured 2026-11-28 by `just oracle-numeric osr`
+- **Affected**: MathML.jl v0.1.25, and `main` at `c1ec4d4`; Symbolics 7.49.0,
+  Julia 1.13.3
+- **Reported**: <https://github.com/SciML/MathML.jl/issues/134>; fix proposed in
+  <https://github.com/SciML/MathML.jl/pull/133> (one line, and the existing test,
+  which asserted the wrong value)
+- **Workaround**: none needed here — this package does not use MathML.jl. It
+  matters to anyone moving an expression between the two readers.
+
+### Reproducer
+
+```julia
+julia> using MathML, Symbolics
+
+julia> MathML.parse_str("<apply><root/><degree><cn>3</cn></degree><ci>x</ci></apply>")
+x^3.0
+```
+
+### Expected / actual
+
+MathML 2 §4.4.3.10: `<root>` with a `<degree>` of `n` is the n-th root, so 2 at
+x = 8; MathML.jl gives 512. `src/utils.jl` applies `x[2]^x[1]` instead of
+`x[2]^(1/x[1])`. On the OSR integration rules, 148 of 1455 expressions are wrong
+in MathML.jl, and every one of them is a `<root>` with a `<degree>`.
+
+---
+
+## MathML.jl 0.1.25 — Content MathML elements without a table entry raise raw errors
+
+- **Found**: 2026-11-13; listed 2026-11-28 by `just oracle-numeric elements`
+- **Affected**: MathML.jl v0.1.25
+- **Reported**: <https://github.com/SciML/MathML.jl/issues/132> (the first four);
+  the rest not yet
+- **Workaround**: none needed here
+
+`<logbase>`, `<quotient/>`, `<csymbol>` and `<cn base>` raise a `KeyError` or an
+`ArgumentError` from the dispatch table; so do `<trunc/>`, `<implies/>`,
+`<mode/>`, `<list>`, `<set>`, `<matrix>`, `<imaginaryi/>`, `<eulergamma/>`,
+`<emptyset/>`, and the `<lowlimit>` qualifier. `<gcd/>` and `<lcm/>` raise a
+`MethodError`, because every `<cn>` is read as a `Float64`; and a unary
+`<real/>`, `<imaginary/>`, `<conjugate/>` or `<ident/>` returns a one-element
+`Vector{Num}` rather than a scalar.
+
+---
+
+## Giac 2.0.0 — `export_mathml` writes `(a/b)/c` as a `<divide/>` of three operands
+
+- **Found**: 2026-11-28 by `just oracle-numeric osr`, Giac route
+- **Affected**: giac 2.0.0 as reported by `version()`, through Giac.jl 0.14.3;
+  Julia 1.13.3
+- **Reported**: not yet
+- **Workaround**: none — both readers refuse the document, which is the right
+  answer to it; this package now says so with an `OpenMathConversionError`
+  naming the symbol and its arity
+
+### Reproducer
+
+```julia
+julia> using Giac
+
+julia> giac_eval("export_mathml((a/b)/c, content)")
+"<math …><apply id='id4'><divide/><ci id='id1'>a</ci><ci id='id2'>b</ci><ci id='id3'>c</ci></apply></math>"
+```
+
+### Expected / actual
+
+`<divide/>` is binary (MathML 2 §4.4.3.3, "a binary arithmetic operator"), so the expected form is a nested
+divide, or a divide by a product. 62 of 1455 OSR expressions are exported this
+way, with three to five operands.
