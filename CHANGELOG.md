@@ -478,6 +478,12 @@ manual review.
 
 ### Changed
 
+- **`XML.jl` 0.4.10 or later is required.** It refuses a document that ends inside
+  a tag, such as `<OMI>1</OMI` (XML.jl#250, reported from here), so the
+  workaround for it is removed, and the error now carries the offset of the cut
+  rather than of the element. It also refuses an empty document itself; the
+  message changes, and `:recover` still returns an error object.
+
 - **The REPL shows objects in Popcorn**: `1 + $x` rather than
   `OMA(OMS(arith1#plus), OMI(1), OMV(x))`. Only where Popcorn shows the whole
   object — a `cdbase` anywhere, or an `OMFOREIGN` with an encoding, falls back

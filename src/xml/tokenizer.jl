@@ -117,16 +117,6 @@ end
 
 _offset(n::_FlatNode) = first(XML.sourcespan(n))
 
-# An element's source ends with the `>` of its end tag. `XML.jl` v0.4.9 accepts
-# an end tag cut off at the very end of the document — `<a>1</a` — at every
-# `wellformed` level (JuliaData/XML.jl#250, upstream-bugs.md), and its span then
-# ends on the name instead.
-function _check_closed(p::XMLPullParser, name::AbstractString, stop::Int)
-    (1 <= stop <= ncodeunits(p.data) && codeunit(p.data, stop) == UInt8('>')) ||
-        throw(OpenMathParseError("unterminated end tag </$(name)>"; offset = stop))
-    return nothing
-end
-
 function next_event!(p::XMLPullParser)
     while true
         p.finished && return XMLDocumentEnd(ncodeunits(p.data) + 1)
@@ -138,7 +128,6 @@ function next_event!(p::XMLPullParser)
                 p.finished = true
                 return XMLDocumentEnd(ncodeunits(p.data) + 1)
             end
-            _check_closed(p, top.name, top.endoffset)
             return XMLEndElement(top.name, top.endoffset)
         end
         node, state = step
@@ -248,8 +237,7 @@ function _consume_last!(p::XMLPullParser, name::AbstractString)
     node === nothing && throw(OpenMathParseError("unterminated <$(name)>"; offset = 1))
     p.last = nothing
     if !isempty(p.open) && p.open[end].node == node && length(p.open) > 1
-        top = pop!(p.open)
-        _check_closed(p, top.name, top.endoffset)
+        pop!(p.open)
     end
     return node
 end

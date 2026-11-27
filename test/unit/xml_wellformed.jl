@@ -69,3 +69,21 @@ end
     refuse()                                   # compiled
     @test @allocated(refuse()) < 1 << 20       # far below the 4 MiB expansion
 end
+
+@testitem "XML: an end tag cut off at the end of the document is refused where it is" tags = [
+    :unit, :xml] begin
+    using OpenMath
+    # `XML.jl` v0.4.9 accepted `<OMI>1</OMI` and closed the element on its name
+    # (JuliaData/XML.jl#250); this package worked around it. v0.4.10 refuses it
+    # itself, at every level, with the position of the cut.
+    for (src, at) in ("<OMI>1</OMI" => 12, "<OMA><OMI>1</OMI></OMA" => 23)
+        e = try
+            read_xml(src)
+            nothing
+        catch err
+            err
+        end
+        @test e isa OpenMath.OpenMathParseError
+        @test "$(src): $(e.offset)" == "$(src): $(at)"
+    end
+end
