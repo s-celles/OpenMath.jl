@@ -573,6 +573,16 @@ manual review.
 
 ### Fixed
 
+- **The Symbolics phrasebook raised a `MethodError` on nine symbols it maps**,
+  on any argument, a literal included: `arith1#gcd`, `arith1#lcm`,
+  `integer1#quotient`, `integer1#factorial`, `rounding1#round`,
+  `rounding1#trunc`, `logic1#not`, `logic1#implies`, and the number
+  constructors `nums1#based_integer`, `based_float` and `bigfloat` (so
+  `<cn base="16">` and `<cn type="e-notation">` could not be interpreted). The
+  functions now build unevaluated terms, computed once their arguments are
+  numbers, and write back as the symbol they were read from; the constructors
+  are given numbers. Found by a differential test against MathML.jl.
+
 - Seven ill-formed XML documents were accepted, and are now refused: `--` in a
   comment, attributes with no white space between them, `&#X41;`, `&#0;`, a raw
   U+0001, a reserved processing-instruction target and
