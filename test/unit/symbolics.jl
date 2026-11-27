@@ -276,3 +276,75 @@ end
         @test isequal(interpret(p, to_openmath(e)), e)
     end
 end
+
+@testitem "symbolics: integer, rounding and logic symbols stay symbolic" tags = [
+    :unit, :symbolics] begin
+    using OpenMath, Symbolics
+    # Found by a differential test against MathML.jl on 2026-11-27: these
+    # symbols interpreted to Julia functions with no method on `Num` — `gcd`,
+    # `div`, `round`, `trunc`, `!` — so the phrasebook raised a `MethodError` on
+    # any argument, a literal included, since literals become `Num`s here. Each
+    # now builds a symbolic term, evaluated only when its arguments are known.
+    p = OpenMath.symbolics_phrasebook()
+    Symbolics.@variables x y a b
+    ev(e, d = Dict()) = Symbolics.value(substitute(e, d; fold = Val(true)))
+    X, Y = OMVariable("x"), OMVariable("y")
+    cases = [
+        (OMS"arith1#gcd"(X, Y), Dict(x => 12, y => 18), 6),
+        (OMS"arith1#lcm"(X, Y), Dict(x => 4, y => 6), 12),
+        (OMS"integer1#quotient"(X, Y), Dict(x => 7, y => 2), 3),
+        (OMS"rounding1#round"(X), Dict(x => 2.4), 2),
+        (OMS"rounding1#trunc"(X), Dict(x => -2.7), -2),
+        (OMS"logic1#not"(OMVariable("a")), Dict(a => true), false),
+        (OMS"logic1#implies"(OMVariable("a"), OMVariable("b")),
+            Dict(a => true, b => false),
+            false),
+        (OMS"logic1#implies"(OMVariable("a"), OMVariable("b")),
+            Dict(a => false, b => false),
+            true)
+    ]
+    for (obj, point, expected) in cases
+        e = interpret(p, obj)
+        got = ev(e, point)
+        @test "$(OpenMath.popcorn(obj)): $(got == expected)" ==
+              "$(OpenMath.popcorn(obj)): true"
+    end
+    # On literals too, which is where the MethodError first showed.
+    @test ev(interpret(p, OMS"arith1#gcd"(OMInteger(12), OMInteger(18)))) == 6
+    @test ev(interpret(p, OMS"integer1#quotient"(OMInteger(7), OMInteger(2)))) == 3
+end
+
+@testitem "symbolics: integer and rounding functions round-trip" tags = [
+    :unit, :symbolics] begin
+    using OpenMath, Symbolics
+    p = OpenMath.symbolics_phrasebook()
+    X, Y = OMVariable("x"), OMVariable("y")
+    for obj in (OMS"arith1#gcd"(X, Y), OMS"arith1#lcm"(X, Y),
+        OMS"integer1#quotient"(X, Y), OMS"integer1#remainder"(X, Y),
+        OMS"integer1#factorial"(X), OMS"rounding1#round"(X), OMS"rounding1#trunc"(X),
+        OMS"rounding1#floor"(X), OMS"rounding1#ceiling"(X),
+        OMS"logic1#not"(X), OMS"logic1#implies"(X, Y))
+        back = to_openmath(interpret(p, obj))
+        @test "$(OpenMath.popcorn(obj)) -> $(OpenMath.popcorn(back))" ==
+              "$(OpenMath.popcorn(obj)) -> $(OpenMath.popcorn(obj))"
+    end
+end
+
+@testitem "symbolics: number constructors get numbers, not Nums" tags = [
+    :unit, :symbolics] begin
+    using OpenMath, Symbolics
+    # `<cn base="16">` and `<cn type="e-notation">` become nums1#based_integer
+    # and nums1#bigfloat under Appendix F; their arguments are literals, which
+    # this phrasebook wraps as `Num`s, and `Int64(::Num)` / `BigFloat(::Num)`
+    # raised. Found by the same differential test.
+    p = OpenMath.symbolics_phrasebook()
+    v(e) = Symbolics.value(e)
+    @test v(interpret(p, OMS"nums1#based_integer"(OMInteger(16), OMString("FF")))) == 255
+    @test v(interpret(p, OMS"nums1#bigfloat"(OMInteger(2), OMInteger(10), OMInteger(3)))) ==
+          2000
+    @test v(interpret(p, OMS"nums1#based_float"(OMInteger(2), OMString("10.1")))) == 2.5
+    ns = "http://www.w3.org/1998/Math/MathML"
+    mml(s) = interpret(p, read_mathml("<math xmlns=\"$ns\">$s</math>"; strict = false).object)
+    @test v(mml("<cn type=\"integer\" base=\"16\">FF</cn>")) == 255
+    @test v(mml("<cn type=\"e-notation\">2<sep/>3</cn>")) == 2000
+end

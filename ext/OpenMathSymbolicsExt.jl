@@ -59,7 +59,18 @@ const _OPERATORS = Dict{Any, Tuple{String, String}}(
     (&) => ("logic1", "and"),
     (|) => ("logic1", "or"),
     (!) => ("logic1", "not"),
-    xor => ("logic1", "xor")
+    xor => ("logic1", "xor"),
+    # Integer and rounding functions, written back by the symbol they were read
+    # from, so the round trip through Symbolics is the identity on them too.
+    gcd => ("arith1", "gcd"),
+    lcm => ("arith1", "lcm"),
+    div => ("integer1", "quotient"),
+    rem => ("integer1", "remainder"),
+    factorial => ("integer1", "factorial"),
+    round => ("rounding1", "round"),
+    trunc => ("rounding1", "trunc"),
+    floor => ("rounding1", "floor"),
+    ceil => ("rounding1", "ceiling")
 )
 
 for (f, name) in ((sin, "sin"), (cos, "cos"), (tan, "tan"),
@@ -204,6 +215,25 @@ function OpenMath.symbolics_phrasebook()
     # different expression. `log10` is the one Symbolics keeps whole, so the
     # round trip is only exact if the common bases are spelled that way.
     define!(p, OMSymbol("transc1", "log"), _log)
+    # Julia functions with no method on `Num`. Literals are `Num`s here, so even
+    # `gcd(12, 18)` raised a `MethodError`; each becomes a symbolic term instead,
+    # computed once its arguments are known — `sin(-8)` stays `sin(-8)` the same
+    # way. Found by a differential test against MathML.jl on 2026-11-27.
+    for (cd, name, f) in (("arith1", "gcd", gcd), ("arith1", "lcm", lcm),
+        ("integer1", "quotient", div), ("rounding1", "round", round),
+        ("rounding1", "trunc", trunc), ("logic1", "not", !),
+    # Symbolics' own `factorial` asserts an integer-typed argument, and the
+    # variables here are real-typed.
+        ("integer1", "factorial", factorial),
+        ("logic1", "implies", _implies))
+        define!(p, OMSymbol(cd, name), (args...) -> _term(f, args...))
+    end
+    # Number constructors take numbers: `nums1#based_integer(16, "FF")` is what
+    # `<cn base="16">` becomes under Appendix F, and `Int64(::Num)` raised.
+    for (name, f) in (("based_integer", OpenMath._om_based_integer),
+        ("based_float", OpenMath._om_based_float), ("bigfloat", OpenMath._om_bigfloat))
+        define!(p, OMSymbol("nums1", name), (args...) -> Num(f(map(_value, args)...)))
+    end
     define!(p, OMSymbol("piece1", "piece"), (value, condition) -> _Piece(value, condition))
     define!(p, OMSymbol("piece1", "otherwise"), value -> _Otherwise(value))
     define!(p, OMSymbol("piece1", "piecewise"), _piecewise)
@@ -251,6 +281,18 @@ function _piecewise(parts...)
 end
 
 _root(a, b) = (b isa Number && b == 2) ? sqrt(a) : a^(1 // b)
+
+# `logic1#implies` as one function, so that it is one term and writes back as
+# itself rather than as `or(not(a), b)`.
+_implies(a, b) = !a | b
+_OPERATORS[_implies] = ("logic1", "implies")
+
+# An unevaluated application of `f`, which `substitute(…; fold = Val(true))`
+# computes once every argument is a number.
+_term(f, args...) = Num(Symbolics.term(f, map(unwrap, args)...; type = Real))
+
+# The Julia number a literal leaf was wrapped from; anything else as it is.
+_value(x) = x isa Num ? Symbolics.value(x) : x
 
 function _log(base, x)
     base isa Number || return log(base, x)

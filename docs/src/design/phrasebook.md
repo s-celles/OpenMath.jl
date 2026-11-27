@@ -192,6 +192,31 @@ self-referential test could have produced, and it is still the highest-overlap
 oracle available; but the prediction as written was not borne out, and the
 hypothesis should be read as being about *disagreements* rather than about bugs.
 
+### What a wider differential test found, 2026-11-27
+
+The 21 pairs above cover the vocabulary someone chose to write down. A second
+run fed MathML.jl 0.1.25 and Appendix F the *same* non-strict document for 90
+elements — every one either side has a table entry for — and compared the two
+`Num`s numerically. This time it found **defects, on our side**: nine symbols
+this phrasebook maps raised a `MethodError` on any argument, a literal included.
+
+- `arith1#gcd`, `arith1#lcm`, `integer1#quotient`, `rounding1#round`,
+  `rounding1#trunc`, `logic1#not` and `logic1#implies` mapped onto Julia
+  functions with no method on `Num`. Literals become `Num`s here (so that
+  `sin(-8)` stays symbolic), so even `gcd(12, 18)` raised.
+- `integer1#factorial` mapped onto Symbolics' own `factorial`, which asserts an
+  integer-typed argument; the variables here are real-typed.
+- `nums1#based_integer`, `based_float` and `bigfloat` — what `<cn base="16">`
+  and `<cn type="e-notation">` become under Appendix F — called `Int64` and
+  `BigFloat` on a `Num`.
+
+Each of the first eight now builds an unevaluated term, which
+`substitute(…; fold = Val(true))` computes once its arguments are numbers, and
+writes back as the symbol it was read from; the three constructors are handed
+the numbers. So the earlier reading — that this oracle finds divergences rather
+than defects — holds only for the vocabulary the first 21 pairs happened to
+cover. Coverage, again, is what decided what could be found.
+
 ## What the generated property found
 
 The unit tests cover sixteen expressions written by hand. `P9` generates them
