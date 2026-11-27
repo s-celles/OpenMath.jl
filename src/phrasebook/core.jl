@@ -309,7 +309,15 @@ function interpret(p::Phrasebook, x::OMApplication)
         "cannot interpret an application whose applicant is not a symbol"))
     f = get(p.forward, _key(head), nothing)
     f === nothing && _unknown(head, length(x.arguments))
-    return f((interpret(p, a) for a in x.arguments)...)
+    args = [interpret(p, a) for a in x.arguments]
+    # A malformed object — `arith1#divide` of three — reaches a function that
+    # has no method for it. That is the object's fault, said in the error type
+    # every other refusal here uses; a `MethodError` raised *inside* `f` is not
+    # caught, since that would hide a defect of the phrasebook itself.
+    applicable(f, args...) || throw(OpenMathConversionError(OMApplication,
+        "$(head.cd)#$(head.name) does not apply to $(length(args)) arguments of " *
+        "types ($(join(typeof.(args), ", ")))"))
+    return f(args...)
 end
 
 function interpret(p::Phrasebook, x::Union{OMOrForeign, OMObject})

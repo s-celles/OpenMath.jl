@@ -573,6 +573,13 @@ manual review.
 
 ### Fixed
 
+- **`interpret` let a `MethodError` escape on an application with the wrong
+  number of arguments**, such as `arith1#divide` of three. It now raises an
+  `OpenMathConversionError` naming the symbol, the number of arguments and their
+  types; a `MethodError` raised inside the mapped function is still not caught.
+  Found by reading Giac's Content MathML, which exports `(a/b)/c` as a
+  `<divide/>` of three operands.
+
 - **The Symbolics phrasebook raised a `MethodError` on nine symbols it maps**,
   on any argument, a literal included: `arith1#gcd`, `arith1#lcm`,
   `integer1#quotient`, `integer1#factorial`, `rounding1#round`,

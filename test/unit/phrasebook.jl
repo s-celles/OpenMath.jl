@@ -239,3 +239,23 @@ end
     @test interpret(p, OMS"set1#set"(OMInteger(1), OMInteger(1))) == Set([1])
     @test interpret(p, OMS"multiset1#multiset"(OMInteger(1), OMInteger(1))) == [1, 1]
 end
+
+@testitem "phrasebook: a wrong number of arguments is a conversion error" tags = [
+    :unit, :phrasebook] begin
+    using OpenMath
+    # Found by a differential test reading Giac's Content MathML: Giac exports
+    # `(a/b)/c` as `<divide/>` with three operands, which Appendix F turns into
+    # `arith1#divide` of three, and `interpret` let the `MethodError` of the
+    # two-argument function escape. A malformed object is a conversion error
+    # naming the symbol, like every other thing the phrasebook cannot interpret.
+    obj = OMS"arith1#divide"(OMInteger(1), OMInteger(2), OMInteger(3))
+    e = try
+        interpret(Phrasebook(), obj)
+        nothing
+    catch err
+        err
+    end
+    @test e isa OpenMath.OpenMathConversionError
+    @test occursin("arith1#divide", sprint(showerror, e))
+    @test occursin("3 arguments", sprint(showerror, e))
+end
