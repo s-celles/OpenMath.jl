@@ -1076,3 +1076,30 @@ julia> giac_eval("export_mathml((a/b)/c, content)")
 `<divide/>` is binary (MathML 2 §4.4.3.3, "a binary arithmetic operator"), so the expected form is a nested
 divide, or a divide by a product. 62 of 1455 OSR expressions are exported this
 way, with three to five operands.
+
+---
+
+## Julia 1.10, 1.11 and 1.12 — `String(@view codeunits(s)[a:b])` takes time proportional to all of `s`
+
+- **Found**: 2026-11-28, reading the 23 MB OSR integration rules on Julia 1.12
+  for the Giac route of `just oracle-numeric`: two hours instead of one second
+- **Affected**: Julia 1.10.13, 1.11.9 and 1.12.7; not 1.13.3
+- **Cause**: the generic `copyto!` calls `unalias`, hence `Base.dataids(src)`.
+  Before Julia 1.13 there is no `dataids(::Base.CodeUnits)` method, so the
+  generic one falls back to `objectid`, and the `objectid` of a `String` hashes
+  its contents. Julia 1.13 adds `dataids(s::Base.CodeUnits)`
+  (`base/strings/basic.jl`), which is why it alone is unaffected
+- **Reported**: no — already fixed in Julia 1.13; not backported to 1.10 (LTS),
+  1.11 or 1.12
+- **Workaround**: `_slice` in `src/bytes.jl` copies the range,
+  `String(codeunits(s)[a:b])`, which costs the slice on every Julia; asserted by
+  "performance: reading is linear in the document" in
+  `test/quality/performance.jl`
+
+### Reproducer
+
+```julia
+julia> s = "a"^10_000_000; v = @view codeunits(s)[1:10];
+
+julia> @elapsed String(v)        # Julia 1.12.7: about 2 ms; 1.13.3: under 1 µs
+```

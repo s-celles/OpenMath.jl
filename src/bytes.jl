@@ -15,7 +15,13 @@
 # multi-byte character. Going through the code units is correct for every input,
 # including malformed UTF-8, which must pass through as opaque bytes rather than
 # throw (REQ-SEC-001).
+#
+# A copy of the range, not a view of it: on Julia 1.10, 1.11 and 1.12,
+# `String(@view codeunits(s)[from:to])` takes time proportional to all of `s`, so
+# a scanner slicing every string out of a large document went quadratic — the
+# 23 MB OSR rules took about two hours to read instead of one second. The copy
+# costs the slice alone on every Julia, for a few more bytes allocated.
 @inline _slice(s::String, from::Int, to::Int) = to < from ? "" :
-                                                String(@view codeunits(s)[from:to])
+                                                String(codeunits(s)[from:to])
 
 @inline _byteview(s::String, from::Int, to::Int) = @view codeunits(s)[from:max(to, from - 1)]

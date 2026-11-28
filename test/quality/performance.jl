@@ -67,3 +67,28 @@
         @test isempty(over)
     end
 end
+
+@testitem "performance: reading is linear in the document, on every Julia" tags = [
+    :quality] begin
+    using OpenMath
+    # Found 2026-11-28 reading the 23 MB OSR rules: on Julia 1.10, 1.11 and 1.12,
+    # `String(@view codeunits(s)[a:b])` takes time proportional to the whole of
+    # `s`, not to the slice, so every string a scanner sliced out of a large
+    # document cost a pass over the document. 660 000 strings took about two
+    # hours instead of one second. Julia 1.13 is not affected, and the allocation
+    # budget above could not see it: the slow path allocates almost nothing.
+    #
+    # 100 000 short strings in a 3 MB document: well under a second when each
+    # slice costs the slice, minutes when it costs the document.
+    doc = "[" * join(("\"value number $(i) of the array\"" for i in 1:100_000), ",") * "]"
+    OpenMath.scan_json("[\"warm\"]")
+    t = @elapsed OpenMath.scan_json(doc)
+    t < 2.0 || println("  scan_json: $(ncodeunits(doc)) bytes in $(round(t; digits = 2)) s")
+    @test t < 2.0
+    # And the helper itself, on a 10 MB string: microseconds per slice.
+    s = "a"^10_000_000
+    OpenMath._slice(s, 1, 10)
+    @test (@elapsed for _ in 1:200
+        OpenMath._slice(s, 1, 10)
+    end) < 0.05
+end
