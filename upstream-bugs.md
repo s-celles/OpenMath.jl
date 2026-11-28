@@ -1037,12 +1037,22 @@ in MathML.jl, and every one of them is a `<root>` with a `<degree>`.
 
 ---
 
-## Giac 2.0.0 — `export_mathml` writes `(a/b)/c` as a `<divide/>` of three operands
+## Giac 2.0.0 and 2.1.0 — `export_mathml` writes `(a/b)/c` as a `<divide/>` of three operands
 
 - **Found**: 2026-11-28 by `just oracle-numeric osr`, Giac route
-- **Affected**: giac 2.0.0 as reported by `version()`, through Giac.jl 0.14.3;
-  Julia 1.13.3
-- **Reported**: not yet
+- **Affected**: giac 2.0.0 as reported by `version()`, through Giac.jl 0.14.3,
+  Julia 1.13.3; **and giac 2.1.0**, reproduced the same day by the JuliaGiac
+  maintainer on a `GIAC_jll` 200.100.0 built from JuliaGiac/giac `dev` (upstream
+  2.1.0), whose `version()` reports `giac 2.1.0`
+- **Cause**: `src/markup.cc`, the product branch of `gen2markup`. Giac holds
+  `(a/b)/c` as `a*inv(b)*inv(c)`; the numerator and denominator factors are
+  concatenated and one `<divide/>` is written over all of them. `((a/b)/c)/d`
+  gives four operands, `x/2/y` three; `a/(b*c)` and `a/b` are correct
+- **Reported**: Giac upstream (Parisse and De Graeve) has no public issue
+  tracker. A fix is in progress in JuliaGiac/giac, branch
+  `fix/mathml-divide-binary` (PR link to follow), wrapping a side with several
+  factors in `<times/>`, and the bug will be in the JuliaGiac maintainer's report
+  to the Giac authors. Nothing sent upstream yet
 - **Workaround**: none — both readers refuse the document, which is the right
   answer to it; this package now says so with an `OpenMathConversionError`
   naming the symbol and its arity

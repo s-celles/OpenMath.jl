@@ -145,7 +145,9 @@ it does not read are listed in
 [#132](https://github.com/SciML/MathML.jl/issues/132).
 
 **In Giac**: `(a/b)/c` is exported as a `<divide/>` of three operands, which
-MathML does not allow; 62 expressions, refused by both readers.
+MathML does not allow; 62 expressions, refused by both readers. Reproduced on
+giac 2.1.0 too; the cause is in `src/markup.cc`, and a fix is in progress in
+JuliaGiac/giac (`upstream-bugs.md`).
 
 What none of this shows is as important: no wrong value came from this package,
 on either route, and MathML.jl gave no wrong value on anything but `<root>` with
