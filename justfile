@@ -194,6 +194,34 @@ oracle-mathml *ARGS:
 oracle-mathml-clean:
     rm -rf refs/mathml-env
 
+# Numeric differential test of the two Content MathML readers: environments,
+# and the OSR integration rules at their pinned commit. See
+# docs/src/differential-testing.md.
+oracle-numeric-setup:
+    @{{julia}} {{tproj}} test/harness/oracle_numeric_build.jl
+
+# `elements` (90 Content MathML elements, both readers) or `osr` (OSR rules
+# against their OpenMath truth).
+oracle-numeric MODE="elements":
+    @{{julia}} --project=refs/mathml-env test/harness/oracle_mathml_numeric.jl {{MODE}}
+
+# Have Giac write the OSR expressions as Content MathML, for `oracle-numeric osr`.
+# Giac.jl is GPL-3.0 and runs in its own environment and process.
+oracle-numeric-giac:
+    @{{julia}} --project=refs/giac-env test/harness/osr_giac_mathml.jl
+
+# The same with the dev Giac — Giac.jl's giac-2.1.0 branch and the JuliaGiac
+# maintainer's local GIAC_jll and libgiac_julia_jll. A preview, Julia 1.12 only.
+oracle-numeric-giac-dev-setup:
+    JULIA_PKG_USE_CLI_GIT=true {{julia}} +1.12 {{tproj}} test/harness/oracle_numeric_build.jl --giac-dev
+
+oracle-numeric-giac-dev:
+    @{{julia}} +1.12 --project=refs/giac-dev-env test/harness/osr_giac_mathml.jl
+
+# Delete the Giac environments and the OSR corpus.
+oracle-numeric-clean:
+    rm -rf refs/giac-env refs/giac-dev-env refs/osr
+
 # --- documentation ------------------------------------------------------------
 
 # Build the documentation. Fails on any warning.
