@@ -580,6 +580,15 @@ manual review.
 
 ### Fixed
 
+- **Reading a large document was quadratic on Julia 1.10, 1.11 and 1.12.** Every
+  string a reader sliced out of a document cost a pass over the whole document,
+  because `String(@view codeunits(s)[a:b])` hashes all of `s` there (see
+  `upstream-bugs.md`). The 23 MB OSR integration rules took about two hours to
+  read as JSON on Julia 1.12, and now take under a second; a 3.4 MB document went
+  from 63 s to 0.03 s. Julia 1.13 was not affected. A quality test now times a
+  read, since the allocation budget could not see it: the slow path allocates
+  almost nothing.
+
 - **`interpret` let a `MethodError` escape on an application with the wrong
   number of arguments**, such as `arith1#divide` of three. It now raises an
   `OpenMathConversionError` naming the symbol, the number of arguments and their
