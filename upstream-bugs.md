@@ -1048,14 +1048,11 @@ in MathML.jl, and every one of them is a `<root>` with a `<degree>`.
   `(a/b)/c` as `a*inv(b)*inv(c)`; the numerator and denominator factors are
   concatenated and one `<divide/>` is written over all of them. `((a/b)/c)/d`
   gives four operands, `x/2/y` three; `a/(b*c)` and `a/b` are correct
-- **Reported**: Giac upstream (Parisse and De Graeve) has no public issue
-  tracker. Fixed in JuliaGiac/giac by <https://github.com/JuliaGiac/giac/pull/25>
-  (open against `dev`), which wraps a side with several factors in `<times/>`,
-  so `(a/b)/c` becomes `divide(a, times(b, c))`; its test fails on 5 of 8 cases
-  without the fix. The bug will be in the JuliaGiac maintainer's report to the
-  Giac authors; nothing sent upstream yet. To check it end to end, rebuild the
-  dev Giac with #25 and rerun `just oracle-numeric-giac-dev` and
-  `just oracle-numeric osr`: the 62 refusals should go to 0
+- **Reported**: to the JuliaGiac maintainers, who fixed it in JuliaGiac/giac by
+  <https://github.com/JuliaGiac/giac/pull/25>: a side with several factors is
+  wrapped in `<times/>`, so `(a/b)/c` becomes `divide(a, times(b, c))`. To
+  check it end to end, rerun `just oracle-numeric-giac-dev` and
+  `just oracle-numeric osr` on a giac build that includes #25
 - **Workaround**: none — both readers refuse the document, which is the right
   answer to it; this package now says so with an `OpenMathConversionError`
   naming the symbol and its arity
