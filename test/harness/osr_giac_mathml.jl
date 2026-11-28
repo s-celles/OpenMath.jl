@@ -91,7 +91,12 @@ end
 function main()
     docs = Dict{String, String}()
     skipped = 0
-    for (id, obj) in OSRCorpus.expressions()
+    exprs = OSRCorpus.expressions()
+    for (k, (id, obj)) in enumerate(exprs)
+        # Progress on stderr, written before the call: Giac's evaluator can
+        # ignore its time limit, and a hang should name the expression.
+        println(stderr, k, "/", length(exprs), " ", id)
+        flush(stderr)
         src = try
             giac_syntax(obj)
         catch err

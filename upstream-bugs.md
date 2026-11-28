@@ -1050,9 +1050,14 @@ in MathML.jl, and every one of them is a `<root>` with a `<degree>`.
   gives four operands, `x/2/y` three; `a/(b*c)` and `a/b` are correct
 - **Reported**: to the JuliaGiac maintainers, who fixed it in JuliaGiac/giac by
   <https://github.com/JuliaGiac/giac/pull/25>: a side with several factors is
-  wrapped in `<times/>`, so `(a/b)/c` becomes `divide(a, times(b, c))`. To
-  check it end to end, rerun `just oracle-numeric-giac-dev` and
-  `just oracle-numeric osr` on a giac build that includes #25
+  wrapped in `<times/>`, so `(a/b)/c` becomes `divide(a, times(b, c))`
+- **Status**: **fixed in JuliaGiac/giac `dev`** (merged as #25). Verified
+  2026-11-28 by `just oracle-numeric-giac-dev` then `just oracle-numeric osr`,
+  on giac source `9f04834a25b2` (`GIAC_jll` 200.100.0+0, artifact
+  `f5d1f0c38c40`, Giac.jl `chore/giac-2.1.0` tree `982b3c7bc175`), Julia 1.12.7
+  for the Giac step and 1.13.3 for the oracle: non-binary `<divide/>` in 71 of
+  1546 documents before, 0 after; both readers right on all 1455 comparable
+  expressions. Not in a registered GIAC_jll yet
 - **Workaround**: none — both readers refuse the document, which is the right
   answer to it; this package now says so with an `OpenMathConversionError`
   naming the symbol and its arity

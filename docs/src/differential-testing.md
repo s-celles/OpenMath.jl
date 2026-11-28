@@ -127,8 +127,15 @@ MathML.jl 0.1.25, OpenMath.jl 0.1.0, Giac.jl 0.14.3 (the engine reports
 |:--|:--|--:|--:|--:|--:|
 | rendered | MathML.jl | 1305 | **148** | 0 | 2 |
 | rendered | OpenMath.jl | 1305 | 0 | 150 | 0 |
-| Giac | MathML.jl | 1393 | 0 | 62 | 0 |
-| Giac | OpenMath.jl | 1393 | 0 | 62 | 0 |
+| Giac 2.0.0 | MathML.jl | 1393 | 0 | 62 | 0 |
+| Giac 2.0.0 | OpenMath.jl | 1393 | 0 | 62 | 0 |
+| Giac 2.1.0 dev | MathML.jl | 1455 | 0 | 0 | 0 |
+| Giac 2.1.0 dev | OpenMath.jl | 1455 | 0 | 0 | 0 |
+
+*Giac 2.0.0* is the registered Giac.jl 0.14.3. *Giac 2.1.0 dev* is
+`just oracle-numeric-giac-dev`, recorded as: giac source `9f04834a25b2`,
+`GIAC_jll` 200.100.0+0 artifact `f5d1f0c38c40`, Giac.jl `chore/giac-2.1.0` tree
+`982b3c7bc175` — a build that includes JuliaGiac/giac#25.
 
 **`elements`**, 90 elements: 70 agree, 15 are read by this package only, 3 by
 MathML.jl only, 11 by neither, 4 differ in kind (MathML.jl returns a one-element
@@ -158,9 +165,10 @@ it does not read are listed in
 [#132](https://github.com/SciML/MathML.jl/issues/132).
 
 **In Giac**: `(a/b)/c` is exported as a `<divide/>` of three operands, which
-MathML does not allow; 62 expressions, refused by both readers. Reproduced on
-giac 2.1.0 too; the cause is in `src/markup.cc`, and JuliaGiac/giac#25 fixes
-it (`upstream-bugs.md`).
+MathML does not allow; 62 expressions, refused by both readers (71 of the 1546
+documents). Reproduced on giac 2.1.0 too; the cause is in `src/markup.cc`.
+JuliaGiac/giac#25 fixes it, and a giac 2.1.0 build with it takes the count to 0:
+both readers then read all 1455 documents right (`upstream-bugs.md`).
 
 What none of this shows is as important: no wrong value came from this package,
 on either route, and MathML.jl gave no wrong value on anything but `<root>` with
