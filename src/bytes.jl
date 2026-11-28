@@ -16,12 +16,19 @@
 # including malformed UTF-8, which must pass through as opaque bytes rather than
 # throw (REQ-SEC-001).
 #
-# A copy of the range, not a view of it: on Julia 1.10, 1.11 and 1.12,
-# `String(@view codeunits(s)[from:to])` takes time proportional to all of `s`, so
-# a scanner slicing every string out of a large document went quadratic — the
-# 23 MB OSR rules took about two hours to read instead of one second. The copy
-# costs the slice alone on every Julia, for a few more bytes allocated.
-@inline _slice(s::String, from::Int, to::Int) = to < from ? "" :
-                                                String(codeunits(s)[from:to])
+# The bytes are copied straight out of `s`, not through a view: on Julia 1.10,
+# 1.11 and 1.12, `String(@view codeunits(s)[from:to])` takes time proportional
+# to all of `s` (`Base.dataids` hashes the string), so a scanner slicing every
+# string out of a large document went quadratic — the 23 MB OSR rules took about
+# two hours to read instead of one second. `String(codeunits(s)[from:to])` is
+# linear but allocates an intermediate vector, which the allocation budget
+# catches. `unsafe_string` makes the one allocation the result needs, on every
+# Julia; the range is checked first, which is all that is unsafe about it, and
+# `GC.@preserve` keeps `s` alive while its pointer is read.
+@inline function _slice(s::String, from::Int, to::Int)
+    to < from && return ""
+    (1 <= from && to <= ncodeunits(s)) || throw(BoundsError(s, from:to))
+    return GC.@preserve s unsafe_string(pointer(s, from), to - from + 1)
+end
 
 @inline _byteview(s::String, from::Int, to::Int) = @view codeunits(s)[from:max(to, from - 1)]
