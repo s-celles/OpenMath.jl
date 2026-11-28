@@ -1091,8 +1091,9 @@ way, with three to five operands.
   (`base/strings/basic.jl`), which is why it alone is unaffected
 - **Reported**: no — already fixed in Julia 1.13; not backported to 1.10 (LTS),
   1.11 or 1.12
-- **Workaround**: `_slice` in `src/bytes.jl` copies the range,
-  `String(codeunits(s)[a:b])`, which costs the slice on every Julia; asserted by
+- **Workaround**: `_slice` in `src/bytes.jl` copies the bytes with
+  `unsafe_string(pointer(s, a), n)` after a bounds check, which costs the slice
+  on every Julia and makes a single allocation; asserted by
   "performance: reading is linear in the document" in
   `test/quality/performance.jl`
 
