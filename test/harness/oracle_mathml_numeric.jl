@@ -232,7 +232,7 @@ function compare_osr(; npoints = 3, seed = 1)
             note(src, "OpenMath.jl", verdict(read_openmath, doc, truth_at, points), id)
         end
     end
-    return tally, giac !== nothing
+    return tally, giac === nothing ? nothing : get(giac, "__giac__", "an unrecorded Giac")
 end
 
 # --- report ---------------------------------------------------------------------
@@ -262,8 +262,13 @@ function main(argv)
     elseif mode == "osr"
         println("  OSR integration rules at ", OSRCorpus.COMMIT[1:7],
             ", sha256 ", OSRCorpus.DIGEST[1:12], "…\n")
-        tally, withgiac = compare_osr()
-        withgiac || println("  (no Giac documents: run `just oracle-numeric-giac`)\n")
+        tally, giacinfo = compare_osr()
+        println(
+            giacinfo === nothing ?
+            "  (no Giac documents: run `just oracle-numeric-giac`)\n" :
+            "  Giac documents written by ",
+            giacinfo,
+            "\n")
         for k in sort(collect(keys(tally)))
             println("  ", rpad(join(k, " | "), 100), length(tally[k]))
         end

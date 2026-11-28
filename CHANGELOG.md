@@ -26,7 +26,8 @@ manual review.
 - **`just oracle-numeric`**, a numeric differential test of the two Julia
   Content MathML readers — this package and MathML.jl — on 90 Content MathML
   elements and on the OSR integration rules (pinned, digest-checked), with
-  Giac as an optional third implementation writing the MathML. Documented,
+  Giac as an optional third implementation writing the MathML (the registered
+  Giac.jl, or the development giac 2.1.0 under Julia 1.12). Documented,
   with its results and what it found, in `docs/src/differential-testing.md`.
 
 - **Popcorn parser**: `read_popcorn(src)` reads Popcorn back into an `OMObject`.

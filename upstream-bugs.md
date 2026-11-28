@@ -1049,10 +1049,13 @@ in MathML.jl, and every one of them is a `<root>` with a `<degree>`.
   concatenated and one `<divide/>` is written over all of them. `((a/b)/c)/d`
   gives four operands, `x/2/y` three; `a/(b*c)` and `a/b` are correct
 - **Reported**: Giac upstream (Parisse and De Graeve) has no public issue
-  tracker. A fix is in progress in JuliaGiac/giac, branch
-  `fix/mathml-divide-binary` (PR link to follow), wrapping a side with several
-  factors in `<times/>`, and the bug will be in the JuliaGiac maintainer's report
-  to the Giac authors. Nothing sent upstream yet
+  tracker. Fixed in JuliaGiac/giac by <https://github.com/JuliaGiac/giac/pull/25>
+  (open against `dev`), which wraps a side with several factors in `<times/>`,
+  so `(a/b)/c` becomes `divide(a, times(b, c))`; its test fails on 5 of 8 cases
+  without the fix. The bug will be in the JuliaGiac maintainer's report to the
+  Giac authors; nothing sent upstream yet. To check it end to end, rebuild the
+  dev Giac with #25 and rerun `just oracle-numeric-giac-dev` and
+  `just oracle-numeric osr`: the 62 refusals should go to 0
 - **Workaround**: none — both readers refuse the document, which is the right
   answer to it; this package now says so with an `OpenMathConversionError`
   naming the symbol and its arity

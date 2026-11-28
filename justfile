@@ -210,9 +210,17 @@ oracle-numeric MODE="elements":
 oracle-numeric-giac:
     @{{julia}} --project=refs/giac-env test/harness/osr_giac_mathml.jl
 
-# Delete the Giac environment and the OSR corpus.
+# The same with the dev Giac — Giac.jl's giac-2.1.0 branch and the JuliaGiac
+# maintainer's local GIAC_jll and libgiac_julia_jll. A preview, Julia 1.12 only.
+oracle-numeric-giac-dev-setup:
+    JULIA_PKG_USE_CLI_GIT=true {{julia}} +1.12 {{tproj}} test/harness/oracle_numeric_build.jl --giac-dev
+
+oracle-numeric-giac-dev:
+    @{{julia}} +1.12 --project=refs/giac-dev-env test/harness/osr_giac_mathml.jl
+
+# Delete the Giac environments and the OSR corpus.
 oracle-numeric-clean:
-    rm -rf refs/giac-env refs/osr
+    rm -rf refs/giac-env refs/giac-dev-env refs/osr
 
 # --- documentation ------------------------------------------------------------
 

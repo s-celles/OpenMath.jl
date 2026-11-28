@@ -72,12 +72,16 @@ function main()
         (startswith(s, '"') && endswith(s, '"')) && (s = s[2:(end - 1)])
         docs[id] = s
     end
+    # Which Giac wrote these documents, for the report: the oracle prints it.
+    engine = string(Giac.giac_eval("version()"))
+    docs["__giac__"] = "Giac.jl $(pkgversion(Giac)), " *
+                       first(split(strip(engine, '"'), ','))
     out = joinpath(OSRCorpus.DIR, "giac-mathml.json")
     open(out, "w") do io
         print(io, OSRCorpus.json_object(docs))
     end
     println(
-        "  ", length(docs), " documents from Giac.jl ", pkgversion(Giac), ", ", skipped,
+        "  ", length(docs) - 1, " documents from ", docs["__giac__"], ", ", skipped,
         " skipped; written to ", relpath(out, OSRCorpus.ROOT))
     return 0
 end

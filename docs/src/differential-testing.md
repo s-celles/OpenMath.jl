@@ -103,6 +103,19 @@ $ just oracle-numeric-giac       # optional: Giac writes the OSR MathML (GPL-3.0
 $ just oracle-numeric osr
 ```
 
+The Giac step uses the registered Giac.jl, and with it giac 2.0.0. A second
+setup uses the development Giac instead — Giac.jl's `chore/giac-2.1.0` branch
+and the giac 2.1.0 libraries the JuliaGiac maintainer builds locally until they
+are registered:
+
+```console
+$ just oracle-numeric-giac-dev-setup   # Julia 1.12 only, as those libraries are
+$ just oracle-numeric-giac-dev         # then `just oracle-numeric osr` as above
+```
+
+It is a preview: those libraries are rebuilt in place, so a result from it says
+which Giac produced it — the oracle prints the version the documents record.
+
 ### Results, 2026-11-28
 
 MathML.jl 0.1.25, OpenMath.jl 0.1.0, Giac.jl 0.14.3 (the engine reports
